@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <title>Cadastro de Localidades</title>
+</head>
+<body>
+    <h1>Cadastro de Localidades</h1>
+    <form action="{{ url_for('adicionar') }}" method="POST">
+        <input name="nome" placeholder="Nome" required><br>
+        <input name="unidade" placeholder="Unidade" required><br>
+        <input name="responsavel" placeholder="Responsável" required><br>
+        <input name="data" type="date" required><br>
+        <label>Tipo de piso:</label><br>
+        {% for piso in ["Paviflex", "Cerâmica", "Porcelanato", "Granilite", "Cimento Queimado", "Epoxi", "Ardósia", "Outros"] %}
+            <input type="checkbox" name="tipo_piso" value="{{ piso }}"> {{ piso }}<br>
+        {% endfor %}
+        <label>Vidros Altos:</label>
+        <input type="checkbox" name="vidros_altos" value="Sim"> Sim<br>
+        <button type="submit">Salvar</button>
+    </form>
+
+    <h2>Localidades Cadastradas</h2>
+    <ul>
+    {% for item in localidades %}
+        <li>{{ item["nome"] }} - {{ item["unidade"] }} - {{ item["responsavel"] }}</li>
+    {% endfor %}
+    </ul>
+
+    <a href="{{ url_for('exportar') }}">Exportar para Excel</a>
+</body>
+</html>
