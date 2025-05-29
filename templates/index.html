@@ -1,0 +1,381 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cadastro de Localidades e Medidas</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <div class="container">
+        <h1>Cadastro de Localidades e Medidas por Unidade</h1>
+
+        <form id="cadastroForm">
+            <div class="form-group">
+                <label for="localidade">Localidade:</label>
+                <input type="text" id="localidade" name="localidade" required>
+            </div>
+            <div class="form-group">
+                <label for="unidade">Unidade:</label>
+                <input type="text" id="unidade" name="unidade" required>
+            </div>
+            <div class="form-group">
+                <label for="data">Data:</label>
+                <input type="date" id="data" name="data" value="{{ data_hoje }}" required>
+            </div>
+            <div class="form-group">
+                <label for="responsavel">Responsável pela unidade:</label>
+                <input type="text" id="responsavel" name="responsavel">
+            </div>
+            <div class="form-group">
+                <label for="qtd_func">Quantidade de Funcionário:</label>
+                <input type="number" id="qtd_func" name="qtd_func" min="0">
+            </div>
+
+            <div class="form-group">
+                <label>Tipo de Piso:</label>
+                <div class="checkbox-group vertical-checkbox-group">
+                    {% for piso in tipos_piso %}
+                        <div>
+                            <input type="checkbox" id="piso_{{ piso }}" name="piso_{{ piso }}">
+                            <label for="piso_{{ piso }}">{{ piso }}</label>
+                        </div>
+                    {% endfor %}
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label>Vidros Altos:</label>
+                <div class="radio-group vertical-checkbox-group">
+                    <div>
+                        <input type="radio" id="vidros_sim" name="vidros_altos" value="Sim">
+                        <label for="vidros_sim">Sim</label>
+                    </div>
+                    <div>
+                        <input type="radio" id="vidros_nao" name="vidros_altos" value="Não" checked>
+                        <label for="vidros_nao">Não</label>
+                    </div>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label>Paredes:</label>
+                <div class="checkbox-group vertical-checkbox-group">
+                    {% for parede in tipos_parede %}
+                        <div>
+                            <input type="checkbox" id="parede_{{ parede }}" name="parede_{{ parede }}">
+                            <label for="parede_{{ parede }}">{{ parede }}</label>
+                        </div>
+                    {% endfor %}
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label>Outras Informações:</label>
+                <div class="checkbox-group vertical-checkbox-group"> 
+                    <div>
+                        <input type="checkbox" id="estacionamento" name="estacionamento">
+                        <label for="estacionamento">Estacionamento</label>
+                    </div>
+                    <div>
+                        <input type="checkbox" id="gramado" name="gramado">
+                        <label for="gramado">Gramado</label>
+                    </div>
+                    <div>
+                        <input type="checkbox" id="curativo" name="curativo">
+                        <label for="curativo">Sala de Curativo</label>
+                    </div>
+                    <div>
+                        <input type="checkbox" id="vacina" name="vacina">
+                        <label for="vacina">Sala de Vacina</label>
+                    </div>
+                </div>
+            </div>
+
+            <h2>Medidas</h2>
+            <div class="form-group">
+                <label>Tipos de Medida:</label>
+                <div class="checkbox-group vertical-checkbox-group">
+                    {% for tipo in tipos_medida %}
+                        <div>
+                            <input type="checkbox" id="medida_tipo_{{ tipo }}" name="medida_tipo_{{ tipo }}" class="medida-tipo-checkbox">
+                            <label for="medida_tipo_{{ tipo }}">{{ tipo }}</label>
+                        </div>
+                    {% endfor %}
+                </div>
+            </div>
+            <div class="form-group inline-group">
+                <div>
+                    <label for="comprimento">Comprimento (m):</label>
+                    <input type="number" step="0.01" id="comprimento">
+                </div>
+                <div>
+                    <label for="largura">Largura (m):</label>
+                    <input type="number" step="0.01" id="largura">
+                </div>
+            </div>
+            <div class="button-group">
+                <button type="button" id="adicionarMedidaBtn" class="btn">Adicionar Medida</button>
+                <button type="button" id="excluirMedidaBtn" class="btn btn-danger">Excluir Medida</button>
+                <button type="button" id="repetirMedidaBtn" class="btn">Repetir Medida</button>
+            </div>
+
+            <ul id="medidasList" class="medida-list"></ul>
+
+            <input type="hidden" id="medidasJson" name="medidas_json" value="[]">
+
+            <div class="button-group main-actions">
+                <button type="submit" class="btn btn-primary">Salvar Unidade</button>
+                <button type="button" id="novaUnidadeBtn" class="btn">Nova Unidade</button>
+            </div>
+        </form>
+
+        <hr>
+
+        <h2>Unidades Cadastradas</h2>
+        <div class="select-and-buttons">
+            <select id="localidadeUnidadeSelect">
+                <option value="">Selecione uma unidade...</option>
+                {% for lu in lista_localidades_unidades %}
+                    <option value="{{ lu }}">{{ lu }}</option>
+                {% endfor %}
+            </select>
+            <button type="button" id="carregarUnidadeBtn" class="btn">Carregar</button>
+            
+            <div class="form-group" style="display:inline-block; margin-left: 10px;">
+                <label for="recipient_email">E-mail para Envio:</label>
+                <input type="email" id="recipient_email" name="recipient_email" placeholder="nome@empresa.com">
+            </div>
+
+            <form id="exportAndEmailForm" method="POST" action="/exportar_excel_e_enviar_email" style="display:inline-block;">
+                <input type="hidden" name="selected_unit_to_export" id="selectedUnitToExportEmail">
+                <input type="hidden" name="recipient_email_to_send" id="recipientEmailToSendHidden">
+                <button type="submit" class="btn btn-success">Exportar Excel e Enviar por E-mail</button>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        let medidasData = []; // Array global para armazenar as medidas no frontend
+
+        document.addEventListener('DOMContentLoaded', () => {
+            const cadastroForm = document.getElementById('cadastroForm');
+            const medidasList = document.getElementById('medidasList');
+            const medidasJsonInput = document.getElementById('medidasJson');
+            
+            const localidadeUnidadeSelect = document.getElementById('localidadeUnidadeSelect');
+            const carregarUnidadeBtn = document.getElementById('carregarUnidadeBtn');
+            const novaUnidadeBtn = document.getElementById('novaUnidadeBtn');
+            
+            // Elementos para o envio de e-mail
+            const recipientEmailInput = document.getElementById('recipient_email');
+            const exportAndEmailForm = document.getElementById('exportAndEmailForm');
+            const selectedUnitToExportEmailInput = document.getElementById('selectedUnitToExportEmail');
+            const recipientEmailToSendHiddenInput = document.getElementById('recipientEmailToSendHidden');
+
+            // Define a data atual no campo de data ao carregar a página
+            const today = new Date();
+            const yyyy = today.getFullYear();
+            const mm = String(today.getMonth() + 1).padStart(2, '0'); // Mês começa em 0
+            const dd = String(today.getDate()).padStart(2, '0');
+            document.getElementById('data').value = `${yyyy}-${mm}-${dd}`;
+
+
+            function atualizarListaMedidas() {
+                // Limpa a lista visual de medidas
+                medidasList.innerHTML = '';
+                // Adiciona cada medida à lista
+                medidasData.forEach((medida, index) => {
+                    const li = document.createElement('li');
+                    li.textContent = `${medida[0]}: ${medida[1]}m x ${medida[2]}m = ${medida[3].toFixed(2)} m²`;
+                    li.dataset.index = index; // Armazena o índice para fácil exclusão
+                    medidasList.appendChild(li);
+                });
+                // Atualiza o campo oculto com a versão JSON das medidas
+                medidasJsonInput.value = JSON.stringify(medidasData);
+            }
+
+            document.getElementById('adicionarMedidaBtn').addEventListener('click', () => {
+                const comprimento = parseFloat(document.getElementById('comprimento').value.replace(',', '.'));
+                const largura = parseFloat(document.getElementById('largura').value.replace(',', '.'));
+                const tipoCheckboxes = document.querySelectorAll('.medida-tipo-checkbox:checked');
+                
+                // Validação dos campos de medida
+                if (isNaN(comprimento) || isNaN(largura) || comprimento <= 0 || largura <= 0) {
+                    alert("Comprimento e largura devem ser números positivos válidos.");
+                    return;
+                }
+                if (tipoCheckboxes.length === 0) {
+                    alert("Selecione ao menos um tipo de medida.");
+                    return;
+                }
+
+                const area = comprimento * largura;
+                // Adiciona a medida para cada tipo selecionado
+                tipoCheckboxes.forEach(checkbox => {
+                    medidasData.push([checkbox.id.replace('medida_tipo_', ''), comprimento, largura, area]);
+                    // Não desmarca o checkbox para manter a seleção até que o usuário clique em outro.
+                    // checkbox.checked = false; 
+                });
+                
+                // Limpa os campos de input de comprimento e largura
+                document.getElementById('comprimento').value = '';
+                document.getElementById('largura').value = '';
+                atualizarListaMedidas(); // Atualiza a lista visual
+            });
+
+            document.getElementById('excluirMedidaBtn').addEventListener('click', () => {
+                const selectedLi = medidasList.querySelector('.selected');
+                if (selectedLi) {
+                    const index = parseInt(selectedLi.dataset.index);
+                    medidasData.splice(index, 1); // Remove a medida do array
+                    atualizarListaMedidas(); // Atualiza a lista visual
+                } else {
+                    alert("Selecione uma medida para excluir.");
+                }
+            });
+
+            document.getElementById('repetirMedidaBtn').addEventListener('click', () => {
+                const selectedLi = medidasList.querySelector('.selected');
+                if (selectedLi) {
+                    const index = parseInt(selectedLi.dataset.index);
+                    const medidaParaRepetir = medidasData[index];
+                    const count = prompt("Quantas vezes repetir essa medida?", "1");
+                    if (count && !isNaN(parseInt(count)) && parseInt(count) > 0) {
+                        for (let i = 0; i < parseInt(count); i++) {
+                            medidasData.push([...medidaParaRepetir]); // Adiciona uma cópia da medida
+                        }
+                        atualizarListaMedidas(); // Atualiza a lista visual
+                    } else if (count !== null) { 
+                        alert("Por favor, digite um número inteiro positivo.");
+                    }
+                } else {
+                    alert("Selecione uma medida para repetir.");
+                }
+            });
+
+            // Adiciona funcionalidade de seleção aos itens da lista de medidas
+            medidasList.addEventListener('click', (event) => {
+                medidasList.querySelectorAll('li').forEach(li => li.classList.remove('selected'));
+                if (event.target.tagName === 'LI') {
+                    event.target.classList.add('selected');
+                }
+            });
+
+            // Lidar com a submissão do formulário de cadastro/edição
+            cadastroForm.addEventListener('submit', async (e) => {
+                e.preventDefault(); // Impede o envio padrão do formulário
+                const formData = new FormData(cadastroForm);
+                formData.set('medidas_json', JSON.stringify(medidasData)); // Garante que as medidas estão atualizadas
+
+                try {
+                    const response = await fetch('/salvar_unidade', {
+                        method: 'POST',
+                        body: formData
+                    });
+                    const result = await response.json();
+                    if (result.status === 'success') {
+                        alert(result.message);
+                        window.location.reload(); // Recarrega a página para atualizar a lista de unidades
+                    } else {
+                        alert("Erro: " + result.message);
+                    }
+                } catch (error) {
+                    console.error('Erro ao salvar:', error);
+                    alert("Erro ao salvar unidade. Verifique o console.");
+                }
+            });
+
+            // Lidar com o carregamento de uma unidade existente
+            carregarUnidadeBtn.addEventListener('click', async () => {
+                const selectedValue = localidadeUnidadeSelect.value;
+                if (!selectedValue) {
+                    alert("Selecione uma unidade para carregar.");
+                    return;
+                }
+
+                try {
+                    const response = await fetch('/carregar_unidade', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({ local_unidade: selectedValue })
+                    });
+                    const result = await response.json();
+
+                    if (result.status === 'success') {
+                        const data = result.data;
+                        // Preenche os campos do formulário com os dados carregados
+                        document.getElementById('localidade').value = selectedValue.split(' - ')[0];
+                        document.getElementById('unidade').value = selectedValue.split(' - ')[1];
+                        document.getElementById('data').value = data.data || '';
+                        document.getElementById('responsavel').value = data.responsavel || '';
+                        document.getElementById('qtd_func').value = data.qtd_func || '';
+
+                        // Limpa e preenche checkboxes e radio buttons
+                        document.querySelectorAll('input[type="checkbox"]').forEach(cb => cb.checked = false);
+                        document.querySelectorAll('input[name="vidros_altos"]').forEach(rb => rb.checked = false);
+
+                        (data.piso || []).forEach(p => {
+                            const cb = document.getElementById(`piso_${p}`);
+                            if (cb) cb.checked = true;
+                        });
+                        const vidrosRb = document.querySelector(`input[name="vidros_altos"][value="${data.vidros_altos || 'Não'}"]`);
+                        if (vidrosRb) vidrosRb.checked = true;
+
+                        (data.paredes || []).forEach(p => {
+                            const cb = document.getElementById(`parede_${p}`);
+                            if (cb) cb.checked = true;
+                        });
+                        
+                        document.getElementById('estacionamento').checked = data.estacionamento || false;
+                        document.getElementById('gramado').checked = data.gramado || false;
+                        document.getElementById('curativo').checked = data.curativo || false;
+                        document.getElementById('vacina').checked = data.vacina || false;
+
+                        // Carrega medidas
+                        medidasData = data.medidas || [];
+                        atualizarListaMedidas();
+                        alert("Unidade carregada com sucesso!");
+                    } else {
+                        alert("Erro ao carregar unidade: " + result.message);
+                    }
+                } catch (error) {
+                    console.error('Erro ao carregar:', error);
+                    alert("Erro ao carregar unidade. Verifique o console.");
+                }
+            });
+
+            // Lidar com o botão "Nova Unidade"
+            novaUnidadeBtn.addEventListener('click', () => {
+                cadastroForm.reset(); // Limpa o formulário
+                document.getElementById('data').value = `${yyyy}-${mm}-${dd}`; // Reseta a data para hoje
+                document.getElementById('vidros_nao').checked = true; // Define 'Não' como padrão para vidros altos
+                medidasData = []; // Limpa as medidas
+                atualizarListaMedidas(); // Atualiza a lista visual
+            });
+
+            // Lidar com a exportação e envio por e-mail
+            exportAndEmailForm.addEventListener('submit', (event) => {
+                const selectedValue = localidadeUnidadeSelect.value;
+                const recipientEmail = recipientEmailInput.value;
+
+                if (!selectedValue) {
+                    event.preventDefault(); // Impede o envio do formulário
+                    alert("Selecione uma unidade para exportar o Excel e enviar por e-mail.");
+                    return;
+                }
+                if (!recipientEmail) {
+                    event.preventDefault();
+                    alert("Por favor, digite o endereço de e-mail do destinatário.");
+                    return;
+                }
+                // Preenche os campos ocultos do formulário antes de submeter
+                selectedUnitToExportEmailInput.value = selectedValue;
+                recipientEmailToSendHiddenInput.value = recipientEmail;
+            });
+        });
+    </script>
+</body>
+</html>
