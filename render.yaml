@@ -1,0 +1,23 @@
+# Exported from Render on 2025-05-30T14:00:00Z (Data Exemplo)
+services:
+- type: web
+  name: cadastro_web_render
+  runtime: python
+  repo: https://github.com/AMS-phm/cadastro # <--- MUDE ISSO!
+  plan: free
+  region: oregon # ou outra região de sua preferência
+  buildCommand: pip install -r requirements.txt
+  startCommand: gunicorn app:app
+  autoDeployTrigger: commit
+  envVars:
+    - key: FLASK_SECRET_KEY # Chave secreta do Flask
+      sync: false # Deixe false para inserir manualmente no Render
+    - key: EMAIL_USER # Seu email para enviar planilhas (ex: seu.email@gmail.com)
+      sync: false
+    - key: EMAIL_PASS # Senha de app do seu email (gerada no Google/Outlook, etc.)
+      sync: false
+    - key: EMAIL_SERVER # Servidor SMTP (ex: smtp.gmail.com)
+      sync: false
+    - key: EMAIL_PORT # Porta SMTP (ex: 587)
+      sync: false
+version: "1"

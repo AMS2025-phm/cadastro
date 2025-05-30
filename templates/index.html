@@ -1,0 +1,336 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cadastro de Localidades e Unidades</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <div class="container">
+        <header class="app-header">
+            <h1>Cadastro de Unidades e Medidas</h1>
+            <nav>
+                <a href="{{ url_for('index') }}" class="btn">Início</a>
+                <a href="{{ url_for('nova_localidade') }}" class="btn">Nova Localidade</a>
+                <a href="{{ url_for('logout') }}" class="btn btn-danger">Sair ({{ g.user.username }})</a>
+            </nav>
+        </header>
+
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                <ul class="flashes">
+                    {% for category, message in messages %}
+                        <li class="{{ category }}">{{ message }}</li>
+                    {% endfor %}
+                </ul>
+            {% endif %}
+        {% endwith %}
+
+        <form id="cadastroForm" action="{{ url_for('adicionar_unidade') }}" method="POST">
+            <h2>Dados da Unidade</h2>
+            <div class="form-group">
+                <label for="localidade_nome">Localidade:</label>
+                <input type="text" id="localidade_nome" name="localidade_nome" list="existingLocalidades" required placeholder="Selecione ou digite uma nova localidade">
+                <datalist id="existingLocalidades">
+                    {% for localidade in localidades %}
+                        <option value="{{ localidade.nome }}">
+                    {% endfor %}
+                </datalist>
+            </div>
+            <div class="form-group">
+                <label for="unidade_nome">Nome da Unidade:</label>
+                <input type="text" id="unidade_nome" name="unidade_nome" required placeholder="Ex: UBS Centro, Hospital Principal">
+            </div>
+            <div class="form-group">
+                <label for="data">Data:</label>
+                <input type="date" id="data" name="data" required>
+            </div>
+            <div class="form-group">
+                <label for="responsavel">Responsável pela unidade:</label>
+                <input type="text" id="responsavel" name="responsavel" placeholder="Nome do responsável">
+            </div>
+            <div class="form-group">
+                <label for="qtd_func">Quantidade de Funcionários:</label>
+                <input type="number" id="qtd_func" name="qtd_func" min="0" placeholder="Aprox. quantidade">
+            </div>
+
+            <div class="form-group">
+                <label>Tipo de Piso:</label>
+                <div class="checkbox-group vertical-checkbox-group">
+                    {% for piso in tipos_piso %}
+                        <div>
+                            <input type="checkbox" id="piso_{{ piso | replace(' ', '_') | lower }}" name="piso_{{ piso | replace(' ', '_') | lower }}">
+                            <label for="piso_{{ piso | replace(' ', '_') | lower }}">{{ piso }}</label>
+                        </div>
+                    {% endfor %}
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label>Vidros Altos:</label>
+                <div class="radio-group vertical-checkbox-group">
+                    <div>
+                        <input type="radio" id="vidros_sim" name="vidros_altos" value="Sim">
+                        <label for="vidros_sim">Sim</label>
+                    </div>
+                    <div>
+                        <input type="radio" id="vidros_nao" name="vidros_altos" value="Não" checked>
+                        <label for="vidros_nao">Não</label>
+                    </div>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label>Paredes:</label>
+                <div class="checkbox-group vertical-checkbox-group">
+                    {% for parede in tipos_parede %}
+                        <div>
+                            <input type="checkbox" id="parede_{{ parede | replace(' ', '_') | lower }}" name="parede_{{ parede | replace(' ', '_') | lower }}">
+                            <label for="parede_{{ parede | replace(' ', '_') | lower }}">{{ parede }}</label>
+                        </div>
+                    {% endfor %}
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label>Outras Informações:</label>
+                <div class="checkbox-group vertical-checkbox-group">
+                    <div>
+                        <input type="checkbox" id="estacionamento" name="estacionamento">
+                        <label for="estacionamento">Estacionamento</label>
+                    </div>
+                    <div>
+                        <input type="checkbox" id="gramado" name="gramado">
+                        <label for="gramado">Gramado</label>
+                    </div>
+                    <div>
+                        <input type="checkbox" id="curativo" name="curativo">
+                        <label for="curativo">Sala de Curativo</label>
+                    </div>
+                    <div>
+                        <input type="checkbox" id="vacina" name="vacina">
+                        <label for="vacina">Sala de Vacina</label>
+                    </div>
+                </div>
+            </div>
+
+            <h2>Medidas</h2>
+            <div class="form-group">
+                <label>Tipos de Medida:</label>
+                <div class="checkbox-group vertical-checkbox-group">
+                    {% for tipo in tipos_medida %}
+                        <div>
+                            <input type="checkbox" id="medida_tipo_{{ tipo | replace(' ', '_') | lower }}" name="medida_tipo_{{ tipo | replace(' ', '_') | lower }}" class="medida-tipo-checkbox">
+                            <label for="medida_tipo_{{ tipo | replace(' ', '_') | lower }}">{{ tipo }}</label>
+                        </div>
+                    {% endfor %}
+                </div>
+            </div>
+            <div class="form-group inline-group">
+                <div>
+                    <label for="comprimento">Comprimento (m):</label>
+                    <input type="number" step="0.01" id="comprimento" placeholder="0.00">
+                </div>
+                <div>
+                    <label for="largura">Largura (m):</label>
+                    <input type="number" step="0.01" id="largura" placeholder="0.00">
+                </div>
+            </div>
+            <div class="button-group">
+                <button type="button" id="adicionarMedidaBtn" class="btn">Adicionar Medida</button>
+                <button type="button" id="excluirMedidaBtn" class="btn btn-danger">Excluir Medida Selecionada</button>
+                <button type="button" id="repetirMedidaBtn" class="btn">Repetir Medida Selecionada</button>
+            </div>
+
+            <ul id="medidasList" class="medida-list"></ul>
+
+            <input type="hidden" id="medidasJson" name="medidas_json" value="[]">
+
+            <input type="hidden" id="vidros_comprimento_hidden" name="vidros_comprimento">
+            <input type="hidden" id="vidros_largura_hidden" name="vidros_largura">
+            <input type="hidden" id="area_interna_comprimento_hidden" name="area_interna_comprimento">
+            <input type="hidden" id="area_interna_largura_hidden" name="area_interna_largura">
+            <input type="hidden" id="area_externa_comprimento_hidden" name="area_externa_comprimento">
+            <input type="hidden" id="area_externa_largura_hidden" name="area_externa_largura">
+            <input type="hidden" id="vestiario_comprimento_hidden" name="vestiario_comprimento">
+            <input type="hidden" id="vestiario_largura_hidden" name="vestiario_largura">
+
+            <div class="button-group main-actions">
+                <button type="submit" class="btn btn-primary">Salvar Unidade</button>
+                <button type="button" id="novaUnidadeBtn" class="btn">Limpar Formulário</button>
+            </div>
+        </form>
+
+        <hr>
+
+        <div class="section-container">
+            <div class="section-left">
+                <h2>Localidades Cadastradas</h2>
+                <ul class="localidade-list">
+                    {% for localidade in localidades %}
+                        <li>
+                            <a href="{{ url_for('ver_localidade', id=localidade.id) }}">
+                                {{ localidade.nome }} ({{ localidade.unidades | length }} unidades)
+                            </a>
+                            <form action="{{ url_for('excluir_localidade', id=localidade.id) }}" method="POST" onsubmit="return confirm('Tem certeza que deseja excluir a localidade {{ localidade.nome }} e todas as suas unidades?');" style="display:inline;">
+                                <button type="submit" class="btn-small btn-danger">Excluir</button>
+                            </form>
+                        </li>
+                    {% endfor %}
+                </ul>
+            </div>
+            <div class="section-right">
+                <form id="exportAndEmailForm" method="POST" action="{{ url_for('exportar_e_enviar') }}">
+                    <h2>Exportar Dados Completos</h2>
+                    <p>Esta ação irá gerar um arquivo Excel com todas as localidades e unidades cadastradas e enviá-lo para um e-mail fixo.</p>
+                    <div class="form-group">
+                        <label for="recipient_email">E-mail de Destino:</label>
+                        <input type="email" id="recipient_email" name="recipient_email" value="comercialservico2025@gmail.com" readonly style="width: 100%;" title="Este é o e-mail fixo para o qual a planilha será enviada.">
+                    </div>
+                    <button type="submit" class="btn btn-success">Exportar Excel e Enviar por E-mail</button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let medidasData = []; // Array global para armazenar as medidas no frontend
+
+        document.addEventListener('DOMContentLoaded', () => {
+            const cadastroForm = document.getElementById('cadastroForm');
+            const medidasList = document.getElementById('medidasList');
+            const medidasJsonInput = document.getElementById('medidasJson');
+            const localidadeNomeInput = document.getElementById('localidade_nome');
+            const unidadeNomeInput = document.getElementById('unidade_nome');
+
+            // Define a data de hoje ao carregar a página
+            const today = new Date();
+            const yyyy = today.getFullYear();
+            const mm = String(today.getMonth() + 1).padStart(2, '0');
+            const dd = String(today.getDate()).padStart(2, '0');
+            document.getElementById('data').value = `${yyyy}-${mm}-${dd}`;
+
+            function updateMeasuresListAndHiddenFields() {
+                // Limpa a lista visual de medidas
+                medidasList.innerHTML = '';
+                // Adiciona cada medida à lista visual
+                medidasData.forEach((medida, index) => {
+                    const li = document.createElement('li');
+                    li.textContent = `${medida[0]}: ${medida[1]}m x ${medida[2]}m = ${medida[3].toFixed(2)} m²`;
+                    li.dataset.index = index; // Armazena o índice para fácil remoção
+                    medidasList.appendChild(li);
+                });
+                // Atualiza o campo oculto com a versão JSON das medidas
+                medidasJsonInput.value = JSON.stringify(medidasData);
+
+                // Zera os campos ocultos de medidas específicas antes de preencher novamente
+                document.getElementById('vidros_comprimento_hidden').value = '';
+                document.getElementById('vidros_largura_hidden').value = '';
+                document.getElementById('area_interna_comprimento_hidden').value = '';
+                document.getElementById('area_interna_largura_hidden').value = '';
+                document.getElementById('area_externa_comprimento_hidden').value = '';
+                document.getElementById('area_externa_largura_hidden').value = '';
+                document.getElementById('vestiario_comprimento_hidden').value = '';
+                document.getElementById('vestiario_largura_hidden').value = '';
+
+                // Preenche os campos ocultos específicos (o último valor para cada tipo)
+                // Isso é feito para compatibilidade com as colunas diretas no DB.
+                // O campo 'medidas' JSON armazena todos os valores.
+                medidasData.forEach(medida => {
+                    if (medida[0] === 'Vidros') {
+                        document.getElementById('vidros_comprimento_hidden').value = medida[1];
+                        document.getElementById('vidros_largura_hidden').value = medida[2];
+                    } else if (medida[0] === 'Área Interna') {
+                        document.getElementById('area_interna_comprimento_hidden').value = medida[1];
+                        document.getElementById('area_interna_largura_hidden').value = medida[2];
+                    } else if (medida[0] === 'Área Externa') {
+                        document.getElementById('area_externa_comprimento_hidden').value = medida[1];
+                        document.getElementById('area_externa_largura_hidden').value = medida[2];
+                    } else if (medida[0] === 'Vestiário') {
+                        document.getElementById('vestiario_comprimento_hidden').value = medida[1];
+                        document.getElementById('vestiario_largura_hidden').value = medida[2];
+                    }
+                });
+            }
+
+            document.getElementById('adicionarMedidaBtn').addEventListener('click', () => {
+                const comprimentoInput = document.getElementById('comprimento');
+                const larguraInput = document.getElementById('largura');
+                const comprimento = parseFloat(comprimentoInput.value.replace(',', '.'));
+                const largura = parseFloat(larguraInput.value.replace(',', '.'));
+                const tipoCheckboxes = document.querySelectorAll('.medida-tipo-checkbox:checked');
+
+                if (isNaN(comprimento) || isNaN(largura) || comprimento <= 0 || largura <= 0) {
+                    alert("Comprimento e largura devem ser números positivos válidos.");
+                    return;
+                }
+                if (tipoCheckboxes.length === 0) {
+                    alert("Selecione ao menos um tipo de medida.");
+                    return;
+                }
+
+                const area = comprimento * largura;
+                tipoCheckboxes.forEach(checkbox => {
+                    medidasData.push([checkbox.id.replace('medida_tipo_', '').replace(/_/g, ' '), comprimento, largura, area]);
+                });
+
+                comprimentoInput.value = '';
+                larguraInput.value = '';
+                // Desmarcar todos os checkboxes de tipo após adicionar
+                tipoCheckboxes.forEach(checkbox => checkbox.checked = false);
+
+                updateMeasuresListAndHiddenFields();
+            });
+
+            document.getElementById('excluirMedidaBtn').addEventListener('click', () => {
+                const selectedLi = medidasList.querySelector('.selected');
+                if (selectedLi) {
+                    const index = parseInt(selectedLi.dataset.index);
+                    medidasData.splice(index, 1);
+                    updateMeasuresListAndHiddenFields();
+                } else {
+                    alert("Selecione uma medida para excluir.");
+                }
+            });
+
+            document.getElementById('repetirMedidaBtn').addEventListener('click', () => {
+                const selectedLi = medidasList.querySelector('.selected');
+                if (selectedLi) {
+                    const index = parseInt(selectedLi.dataset.index);
+                    const medidaParaRepetir = medidasData[index];
+                    const count = prompt("Quantas vezes repetir essa medida?", "1");
+                    if (count && !isNaN(parseInt(count)) && parseInt(count) > 0) {
+                        for (let i = 0; i < parseInt(count); i++) {
+                            medidasData.push([...medidaParaRepetir]);
+                        }
+                        updateMeasuresListAndHiddenFields();
+                    } else if (count !== null) {
+                        alert("Por favor, digite um número inteiro positivo.");
+                    }
+                } else {
+                    alert("Selecione uma medida para repetir.");
+                }
+            });
+
+            // Funcionalidade de seleção de itens na lista de medidas
+            medidasList.addEventListener('click', (event) => {
+                medidasList.querySelectorAll('li').forEach(li => li.classList.remove('selected'));
+                if (event.target.tagName === 'LI') {
+                    event.target.classList.add('selected');
+                }
+            });
+
+            // Botão "Limpar Formulário"
+            document.getElementById('novaUnidadeBtn').addEventListener('click', () => {
+                cadastroForm.reset();
+                document.getElementById('data').value = `${yyyy}-${mm}-${dd}`;
+                document.getElementById('vidros_nao').checked = true;
+                medidasData = [];
+                updateMeasuresListAndHiddenFields();
+                localidadeNomeInput.focus(); // Coloca o foco no primeiro campo
+            });
+        });
+    </script>
+</body>
+</html>

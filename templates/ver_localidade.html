@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Unidades de {{ localidade.nome }}</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <style>
+        .container {
+            max-width: 800px;
+            margin-top: 50px;
+        }
+        .unit-card {
+            background-color: #f9f9f9;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 15px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+        }
+        .unit-card h3 {
+            margin-top: 0;
+            color: #333;
+        }
+        .unit-card p {
+            margin: 5px 0;
+            color: #666;
+        }
+        .unit-card ul {
+            list-style-type: disc;
+            margin-left: 20px;
+            padding: 0;
+        }
+        .unit-card ul li {
+            margin-bottom: 3px;
+        }
+        .no-units {
+            text-align: center;
+            color: #777;
+            padding: 20px;
+            border: 1px dashed #ccc;
+            border-radius: 8px;
+            margin-top: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header class="app-header">
+            <h1>Unidades da Localidade: {{ localidade.nome }}</h1>
+            <nav>
+                <a href="{{ url_for('index') }}" class="btn">Voltar ao Início</a>
+                <a href="{{ url_for('logout') }}" class="btn btn-danger">Sair ({{ g.user.username }})</a>
+            </nav>
+        </header>
+
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                <ul class="flashes">
+                    {% for category, message in messages %}
+                        <li class="{{ category }}">{{ message }}</li>
+                    {% endfor %}
+                </ul>
+            {% endif %}
+        {% endwith %}
+
+        {% if localidade.unidades %}
+            {% for unidade in localidade.unidades %}
+                <div class="unit-card">
+                    <h3>{{ unidade.nome }}</h3>
+                    <p><strong>Data:</strong> {{ unidade.data }}</p>
+                    <p><strong>Responsável:</strong> {{ unidade.responsavel }}</p>
+                    <p><strong>Qtd. Funcionários:</strong> {{ unidade.qtd_funcionarios }}</p>
+                    <p><strong>Vidros Altos:</strong> {{ unidade.vidros }}</p>
+                    <p><strong>Tipos de Piso:</strong> {{ unidade.tipos_piso | from_json | join(', ') }}</p>
+                    <p><strong>Paredes:</strong> {{ unidade.paredes | from_json | join(', ') }}</p>
+                    <p><strong>Outras Características:</strong>
+                        {% if unidade.estacionamento == 'Sim' %}Estacionamento{% endif %}
+                        {% if unidade.gramado == 'Sim' %}, Gramado{% endif %}
+                        {% if unidade.sala_curativo == 'Sim' %}, Sala de Curativo{% endif %}
+                        {% if unidade.sala_vacina == 'Sim' %}, Sala de Vacina{% endif %}
+                        {% if unidade.estacionamento == 'Não' and unidade.gramado == 'Não' and unidade.sala_curativo == 'Não' and unidade.sala_vacina == 'Não' %}Nenhuma{% endif %}
+                    </p>
+
+                    <h4>Medidas Principais:</h4>
+                    <ul>
+                        {% if unidade.vidros_comprimento and unidade.vidros_largura %}
+                            <li>Vidros: {{ unidade.vidros_comprimento }}m x {{ unidade.vidros_largura }}m = {{ (unidade.vidros_comprimento | float * unidade.vidros_largura | float) | round(2) }} m²</li>
+                        {% endif %}
+                        {% if unidade.area_interna_comprimento and unidade.area_interna_largura %}
+                            <li>Área Interna: {{ unidade.area_interna_comprimento }}m x {{ unidade.area_interna_largura }}m = {{ (unidade.area_interna_comprimento | float * unidade.area_interna_largura | float) | round(2) }} m²</li>
+                        {% endif %}
+                        {% if unidade.area_externa_comprimento and unidade.area_externa_largura %}
+                            <li>Área Externa: {{ unidade.area_externa_comprimento }}m x {{ unidade.area_externa_largura }}m = {{ (unidade.area_externa_comprimento | float * unidade.area_externa_largura | float) | round(2) }} m²</li>
+                        {% endif %}
+                        {% if unidade.vestiario_comprimento and unidade.vestiario_largura %}
+                            <li>Vestiário: {{ unidade.vestiario_comprimento }}m x {{ unidade.vestiario_largura }}m = {{ (unidade.vestiario_comprimento | float * unidade.vestiario_largura | float) | round(2) }} m²</li>
+                        {% endif %}
+                    </ul>
+
+                    <h4>Todas as Medidas Cadastradas:</h4>
+                    <ul>
+                        {% set all_medidas = unidade.medidas | from_json %}
+                        {% if all_medidas %}
+                            {% for medida in all_medidas %}
+                                <li>{{ medida[0] }}: {{ medida[1] }}m x {{ medida[2] }}m = {{ medida[3] | round(2) }} m²</li>
+                            {% endfor %}
+                        {% else %}
+                            <li>Nenhuma medida detalhada cadastrada.</li>
+                        {% endif %}
+                    </ul>
+                </div>
+            {% endfor %}
+        {% else %}
+            <div class="no-units">
+                <p>Nenhuma unidade cadastrada para esta localidade ainda.</p>
+                <p>Volte à página inicial para adicionar uma nova unidade.</p>
+            </div>
+        {% endif %}
+    </div>
+</body>
+</html>
