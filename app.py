@@ -73,7 +73,10 @@ def load_logged_in_user():
     user_id = session.get('user_id')
     if user_id is None:
         g.user = None
-    else:
+    	# Verifica se precisa redirecionar para login
+        if request.endpoint not in ['login', 'register', 'static']:
+            return redirect(url_for('login'))
+	else:
         g.user = User.query.get(user_id)
 
 def login_required(f):
@@ -85,13 +88,13 @@ def login_required(f):
         return f(*args, **kwargs)
     return decorated_function
 
-@app.before_request
-def verificar_login_e_redirecionar():
-    # Permite acesso às rotas de login, registro e arquivos estáticos sem estar logado
-    if not session.get('user_id') and \
-       request.endpoint not in ['login', 'register', 'static']:
-        # 'static' é o endpoint para arquivos estáticos (CSS, JS, etc.)
-        return redirect(url_for('login'))
+#@app.before_request
+#def verificar_login_e_redirecionar():
+#    # Permite acesso às rotas de login, registro e arquivos estáticos sem estar logado
+#    if not session.get('user_id') and \
+#       request.endpoint not in ['login', 'register', 'static']:
+#        # 'static' é o endpoint para arquivos estáticos (CSS, JS, etc.)
+#        return redirect(url_for('login'))
 
 # Rotas da Aplicação
 
