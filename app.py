@@ -1,276 +1,196 @@
-from flask import Flask, render_template, request, jsonify
-import json
+from flask import Flask, render_template, request, redirect, url_for, flash, session, send_file
+from flask import g
+from flask_sqlalchemy import SQLAlchemy
+from werkzeug.security import generate_password_hash, check_password_hash
+from functools import wraps
 import os
+import json
+import io
 import datetime
 import openpyxl
-import io
 import smtplib
-from email.mime.multipart import MIMEMultipart
-from email.mime.base import MIMEBase
-from email.mime.text import MIMEText
-from email import encoders
+from email.message import EmailMessage
 
 app = Flask(__name__)
+app.secret_key = 'sua_chave_secreta_aqui'
+app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///localidades.db'
+db = SQLAlchemy(app)
 
-# Nome do arquivo onde os dados são armazenados
-ARQUIVO_DADOS = "localidades.json"
+@app.before_request
+def load_logged_in_user():
+    user_id = session.get('user_id')
+    if user_id is None:
+        g.user = None
+    else:
+        g.user = User.query.get(user_id)
 
-# Listas de opções para os campos do formulário
-TIPOS_PISO = [
-    "Paviflex", "Cerâmica", "Porcelanato", "Granilite",
-    "Cimento Queimado", "Epoxi", "Ardósia", "Outros"
-]
-TIPOS_MEDIDA = ["Vidro", "Sanitário-Vestiário", "Área Interna", "Área Externa"]
-TIPOS_PAREDE = ["Alvenaria", "Estuque", "Divisórias"]
+# Modelos
+class User(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    username = db.Column(db.String(80), unique=True, nullable=False)
+    password = db.Column(db.String(120), nullable=False)
 
-# --- Configurações de E-mail (Lidas de variáveis de ambiente do Render) ---
-EMAIL_USER = os.environ.get('EMAIL_USER')
-EMAIL_PASS = os.environ.get('EMAIL_PASS')
-EMAIL_SERVER = os.environ.get('EMAIL_SERVER')
-EMAIL_PORT = int(os.environ.get('EMAIL_PORT', 587)) # Padrão 587, converte para int
+class Localidade(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    nome = db.Column(db.String(120))
+    unidades = db.relationship('Unidade', backref='localidade', lazy=True)
 
-def carregar_dados():
-    """Carrega os dados existentes do arquivo JSON."""
-    if os.path.exists(ARQUIVO_DADOS):
-        with open(ARQUIVO_DADOS, "r", encoding="utf-8") as f:
-            return json.load(f)
-    return {}
+class Unidade(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    localidade_id = db.Column(db.Integer, db.ForeignKey('localidade.id'), nullable=False)
+    nome = db.Column(db.String(120))
+    data = db.Column(db.String(20))
+    responsavel = db.Column(db.String(120))
+    vidros = db.Column(db.String(10))
+    tipos_piso = db.Column(db.String(300))
+    paredes = db.Column(db.String(300))
+    estacionamento = db.Column(db.String(10))
+    gramado = db.Column(db.String(10))
+    sala_curativo = db.Column(db.String(10))
+    sala_vacina = db.Column(db.String(10))
+    qtd_funcionarios = db.Column(db.String(10))
 
-def salvar_dados(dados):
-    """Salva os dados no arquivo JSON."""
-    with open(ARQUIVO_DADOS, "w", encoding="utf-8") as f:
-        json.dump(dados, f, ensure_ascii=False, indent=4)
+    vidros_comprimento = db.Column(db.String(20))
+    vidros_largura = db.Column(db.String(20))
+    area_interna_comprimento = db.Column(db.String(20))
+    area_interna_largura = db.Column(db.String(20))
+    area_externa_comprimento = db.Column(db.String(20))
+    area_externa_largura = db.Column(db.String(20))
+    vestiario_comprimento = db.Column(db.String(20))
+    vestiario_largura = db.Column(db.String(20))
+
+    medidas = db.Column(db.Text)
+
+# Login requerido
+def login_required(f):
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if 'user_id' not in session:
+            return redirect(url_for('login'))
+        return f(*args, **kwargs)
+    return decorated_function
+
+@app.before_request
+def verificar_login():
+    if not session.get('user_id') and (request.endpoint is None or (request.endpoint not in ['login', 'static'] and not request.endpoint.startswith('static'))):
+        return redirect(url_for('login'))
 
 @app.route('/')
+@login_required
 def index():
-    """Renderiza a página principal com o formulário e a lista de unidades."""
-    localidades = carregar_dados()
-    
-    # Prepara uma lista plana de "Localidade - Unidade" para exibir no dropdown
-    lista_localidades_unidades = []
-    for local, unidades in sorted(localidades.items()):
-        for unidade_nome in sorted(unidades.keys()):
-            lista_localidades_unidades.append(f"{local} - {unidade_nome}")
-    
-    data_hoje = datetime.date.today().isoformat() # Data atual para preencher o campo de data
+    localidades = Localidade.query.all()
+    return render_template('index.html', localidades=localidades)
 
-    return render_template(
-        'index.html',
-        tipos_piso=TIPOS_PISO,
-        tipos_medida=TIPOS_MEDIDA,
-        tipos_parede=TIPOS_PAREDE,
-        data_hoje=data_hoje,
-        lista_localidades_unidades=lista_localidades_unidades
-    )
+@app.route('/login', methods=['GET', 'POST'])
+def login():
+    if request.method == 'POST':
+        user = User.query.filter_by(username=request.form['username']).first()
+        if user and check_password_hash(user.password, request.form['password']):
+            session['user_id'] = user.id
+            return redirect(url_for('index'))
+        flash('Login inválido.')
+    return render_template('login.html')
 
-@app.route('/salvar_unidade', methods=['POST'])
-def salvar_unidade():
-    """Salva os dados de uma unidade submetidos via formulário."""
-    localidade = request.form['localidade'].strip()
-    unidade = request.form['unidade'].strip()
+@app.route('/logout')
+def logout():
+    session.clear()
+    return redirect(url_for('login'))
 
-    if not localidade or not unidade:
-        return jsonify({"status": "error", "message": "Localidade e Unidade são campos obrigatórios."}), 400
+@app.route('/nova_localidade', methods=['GET', 'POST'])
+@login_required
+def nova_localidade():
+    if request.method == 'POST':
+        nome = request.form['nome']
+        localidade = Localidade(nome=nome)
+        db.session.add(localidade)
+        db.session.commit()
+        flash('Localidade adicionada.')
+        return redirect(url_for('index'))
+    return render_template('nova_localidade.html')
 
-    data = request.form.get('data', '')
-    responsavel = request.form.get('responsavel', '')
-    qtd_func = request.form.get('qtd_func', '')
+@app.route('/localidade/<int:id>', methods=['GET', 'POST'])
+@login_required
+def ver_localidade(id):
+    localidade = Localidade.query.get_or_404(id)
+    if request.method == 'POST':
+        unidade = Unidade(
+            localidade_id=id,
+            nome=request.form['nome'],
+            data=request.form['data'],
+            responsavel=request.form['responsavel'],
+            vidros=request.form.get('vidros', 'Não'),
+            tipos_piso=json.dumps(request.form.getlist('tipos_piso')),
+            paredes=json.dumps(request.form.getlist('paredes')),
+            estacionamento=request.form.get('estacionamento', 'Não'),
+            gramado=request.form.get('gramado', 'Não'),
+            sala_curativo=request.form.get('sala_curativo', 'Não'),
+            sala_vacina=request.form.get('sala_vacina', 'Não'),
+            qtd_funcionarios=request.form['qtd_funcionarios'],
+            vidros_comprimento=request.form.get('vidros_comprimento'),
+            vidros_largura=request.form.get('vidros_largura'),
+            area_interna_comprimento=request.form.get('area_interna_comprimento'),
+            area_interna_largura=request.form.get('area_interna_largura'),
+            area_externa_comprimento=request.form.get('area_externa_comprimento'),
+            area_externa_largura=request.form.get('area_externa_largura'),
+            vestiario_comprimento=request.form.get('vestiario_comprimento'),
+            vestiario_largura=request.form.get('vestiario_largura'),
+            medidas=request.form['medidas']
+        )
+        db.session.add(unidade)
+        db.session.commit()
+        flash('Unidade adicionada.')
+    return render_template('ver_localidade.html', localidade=localidade)
 
-    piso_selecionado = []
-    for tipo_piso in TIPOS_PISO:
-        if request.form.get(f'piso_{tipo_piso}'):
-            piso_selecionado.append(tipo_piso)
-
-    vidros_altos = request.form.get('vidros_altos', 'Não')
-
-    paredes_selecionadas = []
-    for tipo_parede in TIPOS_PAREDE:
-        if request.form.get(f'parede_{tipo_parede}'):
-            paredes_selecionadas.append(tipo_parede)
-
-    # Verifica se os checkboxes "Outras Informações" foram marcados
-    estacionamento = 'estacionamento' in request.form
-    gramado = 'gramado' in request.form
-    curativo = 'curativo' in request.form
-    vacina = 'vacina' in request.form
-
-    medidas_json_str = request.form.get('medidas_json', '[]')
-    try:
-        medidas = json.loads(medidas_json_str)
-    except json.JSONDecodeError:
-        medidas = [] # Retorna lista vazia se houver erro no JSON
-
-    localidades = carregar_dados()
-    if localidade not in localidades:
-        localidades[localidade] = {}
-    
-    localidades[localidade][unidade] = {
-        "data": data,
-        "responsavel": responsavel,
-        "qtd_func": qtd_func,
-        "piso": piso_selecionado,
-        "vidros_altos": vidros_altos,
-        "paredes": paredes_selecionadas,
-        "estacionamento": estacionamento,
-        "gramado": gramado,
-        "curativo": curativo,
-        "vacina": vacina,
-        "medidas": medidas
-    }
-    salvar_dados(localidades)
-    return jsonify({"status": "success", "message": "Unidade salva com sucesso!"})
-
-@app.route('/carregar_unidade', methods=['POST'])
-def carregar_unidade():
-    """Carrega os dados de uma unidade específica para edição."""
-    data = request.get_json()
-    local_unidade = data.get('local_unidade')
-    
-    if not local_unidade or " - " not in local_unidade:
-        return jsonify({"status": "error", "message": "Formato de unidade inválido."}), 400
-
-    local, unidade = local_unidade.split(" - ", 1)
-    localidades = carregar_dados()
-
-    if local in localidades and unidade in localidades[local]:
-        return jsonify({"status": "success", "data": localidades[local][unidade]}), 200
-    else:
-        return jsonify({"status": "error", "message": "Unidade não encontrada."}), 404
-
-@app.route('/exportar_excel_e_enviar_email', methods=['POST'])
-def exportar_excel_e_enviar_email():
-    """Gera uma planilha Excel com os dados de uma unidade e a envia por e-mail."""
-    selected_unit_str = request.form.get('selected_unit_to_export')
-    recipient_email = request.form.get('recipient_email_to_send')
-
-    if not selected_unit_str or " - " not in selected_unit_str:
-        return jsonify({"status": "error", "message": "Selecione uma unidade válida para exportar."}), 400
-    
-    if not recipient_email:
-        return jsonify({"status": "error", "message": "Endereço de e-mail do destinatário é obrigatório."}), 400
-
-    local, unidade = selected_unit_str.split(" - ", 1)
-    localidades = carregar_dados()
-
-    if local not in localidades or unidade not in localidades[local]:
-        return jsonify({"status": "error", "message": "Unidade não encontrada para exportação."}), 404
-
-    info = localidades[local][unidade]
-
+@app.route('/exportar_e_enviar')
+@login_required
+def exportar_e_enviar():
+    localidades = Localidade.query.all()
     wb = openpyxl.Workbook()
-    
-    # --- CORREÇÃO DA ABA "DETALHE" ---
-    # Pega a aba padrão (geralmente 'Sheet') e a renomeia para "Detalhe"
-    # Isso garante que estamos sempre trabalhando na mesma aba.
-    ws_detalhe = wb.active
-    ws_detalhe.title = "Detalhe" 
-
-    # Adicionando o cabeçalho na aba "Detalhe"
-    ws_detalhe.append(["Localidade", "Unidade", "Data", "Responsável", "Tipo de Piso", 
-                       "Vidros Altos", "Paredes", "Estacionamento", "Gramado", 
-                       "Sala de Curativo", "Sala de Vacina", "Qtd Funcionários"])
-    
-    # Adicionando os dados na aba "Detalhe"
-    ws_detalhe.append([
-        local, 
-        unidade, 
-        info.get("data", ""), 
-        info.get("responsavel", ""),
-        ", ".join(info.get("piso", [])), 
-        info.get("vidros_altos", ""),
-        ", ".join(info.get("paredes", [])),
-        "Sim" if info.get("estacionamento") else "Não",
-        "Sim" if info.get("gramado") else "Não",
-        "Sim" if info.get("curativo") else "Não",
-        "Sim" if info.get("vacina") else "Não",
-        info.get("qtd_func", "")
+    aba_detalhe = wb.active
+    aba_detalhe.title = "Detalhe"
+    aba_detalhe.append([
+        "Localidade", "Unidade", "Data", "Responsável", "Vidros Altos", "Tipos de Piso", "Paredes",
+        "Estacionamento", "Gramado", "Sala de Curativo", "Sala de Vacina", "Qtd Funcionários", "Medidas",
+        "Vidros (C)", "Vidros (L)", "Área Interna (C)", "Área Interna (L)",
+        "Área Externa (C)", "Área Externa (L)", "Vestiário (C)", "Vestiário (L)"
     ])
 
-    # Cria as outras abas para medidas (se houverem)
-    abas = {
-        "Vidro": wb.create_sheet("Vidros"),
-        "Área Interna": wb.create_sheet("Área Interna"),
-        "Sanitário-Vestiário": wb.create_sheet("Sanitário-Vestiário"),
-        "Área Externa": wb.create_sheet("Área Externa")
-    }
-    # Adiciona cabeçalhos para as abas de medidas
-    for ws in abas.values():
-        ws.append(["Localidade", "Unidade", "Comprimento (m)", "Largura (m)", "Área (m²)"])
+    for local in localidades:
+        for unidade in local.unidades:
+            pisos = ", ".join(json.loads(unidade.tipos_piso or "[]"))
+            paredes = ", ".join(json.loads(unidade.paredes or "[]"))
+            aba_detalhe.append([
+                local.nome, unidade.nome, unidade.data, unidade.responsavel,
+                unidade.vidros, pisos, paredes, unidade.estacionamento,
+                unidade.gramado, unidade.sala_curativo, unidade.sala_vacina,
+                unidade.qtd_funcionarios, unidade.medidas,
+                unidade.vidros_comprimento, unidade.vidros_largura,
+                unidade.area_interna_comprimento, unidade.area_interna_largura,
+                unidade.area_externa_comprimento, unidade.area_externa_largura,
+                unidade.vestiario_comprimento, unidade.vestiario_largura
+            ])
 
-    # Popula as abas de medidas
-    for medida in info.get("medidas", []):
-        tipo, comp, larg, area = medida
-        if tipo in abas:
-            abas[tipo].append([local, unidade, comp, larg, round(area, 2)])
+    buffer = io.BytesIO()
+    wb.save(buffer)
+    buffer.seek(0)
 
-    # Remove sheets vazias (que só têm o cabeçalho e não foram usadas)
-    for sheet_name, sheet_obj in list(abas.items()):
-        if sheet_obj.max_row == 1: # Se só tem o cabeçalho
-            wb.remove(sheet_obj)
-            
-    # Remove a sheet padrão se ela ainda existir e estiver vazia (redundante após a correção, mas seguro)
-    if "Sheet" in wb.sheetnames:
-        default_sheet = wb["Sheet"]
-        if default_sheet.max_row == 0 or (default_sheet.max_row == 1 and all(cell.value is None for cell in default_sheet[1])):
-            wb.remove(default_sheet)
+    # Enviar por e-mail
+    msg = EmailMessage()
+    msg['Subject'] = 'Planilha de Localidades'
+    msg['From'] = os.environ.get('EMAIL_USER')
+    msg['To'] = "comercialservico2025@gmail.com"
+    msg.set_content("Segue em anexo a planilha gerada pelo sistema.")
+    msg.add_attachment(buffer.read(), maintype='application', subtype='vnd.openxmlformats-officedocument.spreadsheetml.sheet', filename="localidades.xlsx")
 
-    # Garante que a aba Detalhe é a aba ativa ao abrir o Excel
-    if "Detalhe" in wb.sheetnames:
-        wb.active = wb["Detalhe"]
+    with smtplib.SMTP(os.environ.get('EMAIL_SERVER'), int(os.environ.get('EMAIL_PORT'))) as server:
+        server.starttls()
+        server.login(os.environ.get('EMAIL_USER'), os.environ.get('EMAIL_PASS'))
+        server.send_message(msg)
 
-    # Salva o workbook em um buffer de memória
-    excel_file_in_memory = io.BytesIO()
-    wb.save(excel_file_in_memory)
-    excel_file_in_memory.seek(0) # Volta ao início do arquivo para leitura
-
-    # Trata caracteres especiais para o nome do arquivo Excel
-    nome_arquivo = f"{local}_{unidade}.xlsx".replace(" ", "_").replace("/", "_").replace("\\", "_").replace(":", "_").replace("*", "_").replace("?", "_").replace("\"", "_").replace("<", "_").replace(">", "_").replace("|", "_")
-    
-    # --- Parte do Envio de E-mail ---
-    if not EMAIL_USER or not EMAIL_PASS or not EMAIL_SERVER:
-        return jsonify({"status": "error", "message": "Configurações de e-mail incompletas no servidor. Verifique EMAIL_USER, EMAIL_PASS, EMAIL_SERVER no Render."}), 500
-
-    msg = MIMEMultipart()
-    msg['From'] = EMAIL_USER
-    msg['To'] = recipient_email
-    msg['Subject'] = f"Dados de Cadastro da Unidade: {local} - {unidade}"
-
-    # Corpo do e-mail em texto simples
-    body = f"""
-    Prezado(a),
-
-    Segue em anexo a planilha Excel com os dados de cadastro da unidade {local} - {unidade}.
-
-    Data: {info.get('data', 'Não informada')}
-    Responsável: {info.get('responsavel', 'Não informado')}
-
-    Atenciosamente,
-    Seu Sistema de Cadastro
-    """
-    
-    # Anexando o corpo do e-mail usando MIMEText (correção anterior)
-    msg.attach(MIMEText(body, 'plain', 'utf-8'))
-
-    # Anexando o arquivo Excel
-    part = MIMEBase('application', 'octet-stream')
-    part.set_payload(excel_file_in_memory.read())
-    encoders.encode_base64(part) # Codifica o anexo em base64
-    part.add_header('Content-Disposition', f'attachment; filename="{nome_arquivo}"')
-    msg.attach(part)
-
-    try:
-        # Tenta enviar o e-mail via SMTP
-        with smtplib.SMTP(EMAIL_SERVER, EMAIL_PORT) as server:
-            server.starttls()  # Inicia TLS para comunicação segura
-            server.login(EMAIL_USER, EMAIL_PASS) # Autentica com o servidor SMTP
-            server.send_message(msg) # Envia a mensagem completa
-        
-        return jsonify({"status": "success", "message": "Unidade salva e Excel enviado por e-mail com sucesso!"}), 200
-
-    except Exception as e:
-        print(f"Erro ao enviar e-mail: {e}") # Loga o erro para depuração
-        return jsonify({"status": "error", "message": f"Erro ao enviar Excel por e-mail: {str(e)}. Verifique as configurações de e-mail e permissões (app password)."}), 500
+    flash("Planilha enviada para o e-mail fixo com sucesso.")
+    return redirect(url_for('index'))
 
 if __name__ == '__main__':
-    # Roda a aplicação Flask em modo de depuração se executado diretamente
-    app.run(debug=True)
+    with app.app_context():
+        db.create_all()
+    app.run(debug=False)
