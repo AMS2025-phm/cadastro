@@ -1,388 +1,514 @@
-from flask import Flask, render_template, request, redirect, url_for, flash, session, send_file, g
-from flask_sqlalchemy import SQLAlchemy
-from werkzeug.security import generate_password_hash, check_password_hash
-from functools import wraps
-import os
+from flask import Flask, render_template, request, jsonify, redirect, url_for, flash, session, g
 import json
-import io
+import os
 import datetime
 import openpyxl
+import io
 import smtplib
-from email.message import EmailMessage
+from email.mime.multipart import MIMEMultipart
+from email.mime.base import MIMEBase
+from email.mime.text import MIMEText
+from email import encoders
+from functools import wraps
 
 app = Flask(__name__)
-# MUDE ISSO PARA UMA CHAVE SECRETA FORTE E ÚNICA EM PRODUÇÃO!
-app.secret_key = os.environ.get('FLASK_SECRET_KEY', 'sua_chave_secreta_padrao_muito_segura')
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///localidades.db'
-app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False # Recomendado para evitar warnings
 
-db = SQLAlchemy(app)
+# --- Configurações de Segurança e Sessão ---
+# ATENÇÃO: Substitua 'sua_chave_secreta_aqui' por uma string longa e aleatória real!
+# No Render, defina esta chave como uma variável de ambiente (e.g., SECRET_KEY).
+app.secret_key = os.environ.get('SECRET_KEY', 'sua_chave_secreta_aqui_muito_secreta') # DEVE SER ALTERADO!
 
-# Filtro para converter JSON para objeto Python no Jinja2
-@app.template_filter('from_json')
-def from_json_filter(value):
-    if value is None:
-        return []
-    try:
-        return json.loads(value)
-    except (json.JSONDecodeError, TypeError):
-        return [] # Retorna lista vazia em caso de erro ou valor inválido
+# --- Usuários Fixos (Lista Fixa) ---
+# Dicionário de usuários e senhas permitidos.
+# Substitua 'usuario1', 'senha1', etc., pelas credenciais desejadas.
+USERS = {
+    "admin": "admin123", # Exemplo: Usuário 'admin' com senha 'admin123'
+    "gerente": "senha_gerente",
+    "operador": "senha_operador"
+}
 
-# Modelos do Banco de Dados
-class User(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    username = db.Column(db.String(80), unique=True, nullable=False)
-    password = db.Column(db.String(120), nullable=False)
+# Nome do arquivo onde os dados das localidades são armazenados
+ARQUIVO_DADOS = "localidades.json"
 
-class Localidade(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    nome = db.Column(db.String(120), unique=True, nullable=False)
-    unidades = db.relationship('Unidade', backref='localidade', lazy=True, cascade="all, delete-orphan")
+# Listas de opções para os campos do formulário
+TIPOS_PISO = [
+    "Paviflex", "Cerâmica", "Porcelanato", "Granilite",
+    "Cimento Queimado", "Epoxi", "Ardósia", "Outros"
+]
+TIPOS_MEDIDA = ["Vidro", "Sanitário-Vestiário", "Área Interna", "Área Externa"]
+TIPOS_PAREDE = ["Alvenaria", "Estuque", "Divisórias"]
 
-class Unidade(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    localidade_id = db.Column(db.Integer, db.ForeignKey('localidade.id'), nullable=False)
-    nome = db.Column(db.String(120), nullable=False)
-    data = db.Column(db.String(20)) # Formato 'YYYY-MM-DD'
-    responsavel = db.Column(db.String(120))
-    vidros = db.Column(db.String(10)) # "Sim" ou "Não"
-    tipos_piso = db.Column(db.Text) # JSON string of list
-    paredes = db.Column(db.Text) # JSON string of list
-    estacionamento = db.Column(db.String(10))
-    gramado = db.Column(db.String(10))
-    sala_curativo = db.Column(db.String(10))
-    sala_vacina = db.Column(db.String(10))
-    qtd_funcionarios = db.Column(db.String(10)) # Pode ser string para flexibilidade (ex: "5-10")
+# --- Configurações de E-mail (Lidas de variáveis de ambiente do Render) ---
+EMAIL_USER = os.environ.get('EMAIL_USER')
+EMAIL_PASS = os.environ.get('EMAIL_PASS')
+EMAIL_SERVER = os.environ.get('EMAIL_SERVER')
+EMAIL_PORT = int(os.environ.get('EMAIL_PORT', 587)) # Padrão 587, converte para int
 
-    # Campos específicos para as primeiras medidas, se existirem
-    vidros_comprimento = db.Column(db.String(20), default='')
-    vidros_largura = db.Column(db.String(20), default='')
-    area_interna_comprimento = db.Column(db.String(20), default='')
-    area_interna_largura = db.Column(db.String(20), default='')
-    area_externa_comprimento = db.Column(db.String(20), default='')
-    area_externa_largura = db.Column(db.String(20), default='')
-    vestiario_comprimento = db.Column(db.String(20), default='')
-    vestiario_largura = db.Column(db.String(20), default='')
+def carregar_dados():
+    """Carrega os dados existentes do arquivo JSON."""
+    if not os.path.exists(ARQUIVO_DADOS):
+        return {}
+    with open(ARQUIVO_DADOS, 'r', encoding='utf-8') as f:
+        return json.load(f)
 
-    # Campo para armazenar todas as medidas como JSON
-    medidas = db.Column(db.Text, default='[]') # Lista de [tipo, comprimento, largura, area]
+def salvar_dados(dados):
+    """Salva os dados no arquivo JSON."""
+    with open(ARQUIVO_DADOS, 'w', encoding='utf-8') as f:
+        json.dump(dados, f, indent=4, ensure_ascii=False)
 
-# Funções de Autenticação
+# --- Funções de Autenticação e Sessão ---
+
 @app.before_request
 def load_logged_in_user():
+    """Carrega o usuário logado antes de cada requisição."""
     user_id = session.get('user_id')
     if user_id is None:
         g.user = None
-    	# Verifica se precisa redirecionar para login
-        if request.endpoint not in ['login', 'register', 'static']:
+    else:
+        # Em um cenário real, você buscaria o usuário de um banco de dados.
+        # Aqui, apenas verificamos se o user_id existe em USERS.
+        g.user = {"username": user_id} if user_id in USERS else None
+
+def login_required(view):
+    """Decorador para rotas que exigem login."""
+    @wraps(view)
+    def wrapped_view(**kwargs):
+        if g.user is None:
+            flash('Você precisa estar logado para acessar esta página.', 'danger')
             return redirect(url_for('login'))
-	else:
-        g.user = User.query.get(user_id)
+        return view(**kwargs)
+    return wrapped_view
 
-def login_required(f):
-    @wraps(f)
-    def decorated_function(*args, **kwargs):
-        if 'user_id' not in session:
-            flash('Você precisa estar logado para acessar esta página.', 'warning')
-            return redirect(url_for('login'))
-        return f(*args, **kwargs)
-    return decorated_function
+# --- Rotas de Autenticação ---
 
-#@app.before_request
-#def verificar_login_e_redirecionar():
-#    # Permite acesso às rotas de login, registro e arquivos estáticos sem estar logado
-#    if not session.get('user_id') and \
-#       request.endpoint not in ['login', 'register', 'static']:
-#        # 'static' é o endpoint para arquivos estáticos (CSS, JS, etc.)
-#        return redirect(url_for('login'))
+@app.route('/login', methods=['GET', 'POST'])
+def login():
+    """Rota para login de usuários."""
+    if g.user: # Se já estiver logado, redireciona para a página principal
+        return redirect(url_for('index'))
 
-# Rotas da Aplicação
+    if request.method == 'POST':
+        username = request.form['username']
+        password = request.form['password']
+        
+        error = None
+        if username not in USERS:
+            error = 'Nome de usuário incorreto.'
+        elif USERS[username] != password:
+            error = 'Senha incorreta.'
+
+        if error is None:
+            session.clear()
+            session['user_id'] = username
+            flash(f'Bem-vindo, {username}!', 'success')
+            return redirect(url_for('index'))
+        else:
+            flash(error, 'danger')
+    
+    return render_template('login.html')
+
+@app.route('/logout')
+def logout():
+    """Rota para logout de usuários."""
+    flash('Você foi desconectado.', 'success')
+    session.clear()
+    return redirect(url_for('login'))
+
+# --- Rotas Existentes (agora protegidas por login_required) ---
 
 @app.route('/')
 @login_required
 def index():
-    localidades = Localidade.query.order_by(Localidade.nome).all()
-    tipos_piso = ["Cerâmica", "Porcelanato", "Madeira", "Cimento Queimado", "Vinílico", "Carpete", "Outro"]
-    tipos_parede = ["Alvenaria", "Drywall", "Madeira", "Vidro", "Outro"]
-    tipos_medida = ["Vidros", "Área Interna", "Área Externa", "Vestiário", "Outro"]
+    """Página inicial com formulário de cadastro de unidades e lista de localidades."""
+    dados = carregar_dados()
+    localidades = list(dados.keys()) # Obtém apenas os nomes das localidades
+    
+    # Prepara as listas de localidades para o select2
+    localidades_para_select = [{"id": loc, "text": loc} for loc in sorted(localidades)]
 
     return render_template(
         'index.html',
+        tipos_piso=TIPOS_PISO,
+        tipos_medida=TIPOS_MEDIDA,
+        tipos_parede=TIPOS_PAREDE,
         localidades=localidades,
-        tipos_piso=tipos_piso,
-        tipos_parede=tipos_parede,
-        tipos_medida=tipos_medida
+        localidades_json=json.dumps(localidades_para_select) # Passa como JSON para o JS
     )
-
-@app.route('/login', methods=['GET', 'POST'])
-def login():
-    if g.user: # Se o usuário já estiver logado, redireciona para a página inicial
-        return redirect(url_for('index'))
-
-    if request.method == 'POST':
-        username = request.form['username']
-        password = request.form['password']
-        user = User.query.filter_by(username=username).first()
-
-        if user and check_password_hash(user.password, password):
-            session['user_id'] = user.id
-            flash('Login bem-sucedido!', 'success')
-            return redirect(url_for('index'))
-        else:
-            flash('Nome de usuário ou senha inválidos.', 'danger')
-    return render_template('login.html')
-
-@app.route('/register', methods=['GET', 'POST'])
-def register():
-    if g.user: # Se o usuário já estiver logado, redireciona para a página inicial
-        return redirect(url_for('index'))
-
-    if request.method == 'POST':
-        username = request.form['username']
-        password = request.form['password']
-        confirm_password = request.form['confirm_password']
-
-        if not username or not password or not confirm_password:
-            flash('Todos os campos são obrigatórios.', 'danger')
-            return render_template('register.html')
-
-        if password != confirm_password:
-            flash('As senhas não coincidem.', 'danger')
-            return render_template('register.html')
-
-        existing_user = User.query.filter_by(username=username).first()
-        if existing_user:
-            flash('Nome de usuário já existe. Escolha outro.', 'danger')
-            return render_template('register.html')
-
-        hashed_password = generate_password_hash(password)
-        new_user = User(username=username, password=hashed_password)
-        db.session.add(new_user)
-        db.session.commit()
-        flash('Registro bem-sucedido! Faça login.', 'success')
-        return redirect(url_for('login'))
-    return render_template('register.html')
-
-@app.route('/logout')
-@login_required
-def logout():
-    session.clear()
-    flash('Você foi desconectado.', 'info')
-    return redirect(url_for('login'))
 
 @app.route('/nova_localidade', methods=['GET', 'POST'])
 @login_required
 def nova_localidade():
+    """Permite adicionar uma nova localidade."""
     if request.method == 'POST':
-        nome = request.form['nome'].strip()
-        if not nome:
+        nome_localidade = request.form['nome'].strip()
+        if not nome_localidade:
             flash('O nome da localidade não pode ser vazio.', 'danger')
-            return render_template('nova_localidade.html')
+            return redirect(url_for('nova_localidade'))
 
-        existing_localidade = Localidade.query.filter_by(nome=nome).first()
-        if existing_localidade:
-            flash(f'A localidade "{nome}" já existe.', 'warning')
-            return render_template('nova_localidade.html')
+        dados = carregar_dados()
+        if nome_localidade in dados:
+            flash(f'A localidade "{nome_localidade}" já existe.', 'danger')
+        else:
+            dados[nome_localidade] = [] # Cria uma nova localidade vazia
+            salvar_dados(dados)
+            flash(f'Localidade "{nome_localidade}" adicionada com sucesso!', 'success')
+            return redirect(url_for('index')) # Redireciona para a página principal após adicionar
 
-        localidade = Localidade(nome=nome)
-        db.session.add(localidade)
-        db.session.commit()
-        flash(f'Localidade "{nome}" adicionada com sucesso!', 'success')
-        return redirect(url_for('index'))
     return render_template('nova_localidade.html')
 
-@app.route('/localidade/<int:id>')
-@login_required
-def ver_localidade(id):
-    localidade = Localidade.query.get_or_404(id)
-    return render_template('ver_localidade.html', localidade=localidade)
-
-@app.route('/excluir_localidade/<int:id>', methods=['POST'])
-@login_required
-def excluir_localidade(id):
-    localidade = Localidade.query.get_or_404(id)
-    db.session.delete(localidade)
-    db.session.commit()
-    flash(f'Localidade "{localidade.nome}" e todas as suas unidades foram excluídas.', 'success')
-    return redirect(url_for('index'))
 
 @app.route('/adicionar_unidade', methods=['POST'])
 @login_required
 def adicionar_unidade():
+    """Rota para adicionar uma nova unidade a uma localidade existente."""
+    localidade_nome = request.form['localidade_nome']
+    unidade_nome = request.form['unidade_nome']
+    data = request.form['data']
+    responsavel = request.form['responsavel']
+    tipo_piso = request.form['tipo_piso']
+    
+    # Campos de Comprimento/Largura (para tratamento de vírgulas)
+    area_interna_comprimento = request.form.get('area_interna_comprimento', '').replace(',', '.')
+    area_interna_largura = request.form.get('area_interna_largura', '').replace(',', '.')
+    area_externa_comprimento = request.form.get('area_externa_comprimento', '').replace(',', '.')
+    area_externa_largura = request.form.get('area_externa_largura', '').replace(',', '.')
+    vestiario_comprimento = request.form.get('vestiario_comprimento', '').replace(',', '.')
+    vestiario_largura = request.form.get('vestiario_largura', '').replace(',', '.')
+
+    tem_vidros = request.form.get('tem_vidros') == 'sim'
+    vidros_tipo = request.form.get('vidros_tipo', '') if tem_vidros else ''
+    vidros_quantidade = request.form.get('vidros_quantidade', '') if tem_vidros else ''
+    vidros_observacao = request.form.get('vidros_observacao', '') if tem_vidros else ''
+
+    tipo_parede = request.form['tipo_parede']
+    observacoes_gerais = request.form['observacoes_gerais']
+
+    # Recupera as medidas dinâmicas do campo oculto (JSON string)
+    medidas_json_str = request.form.get('medidas_dinamicas_json', '[]')
     try:
-        localidade_nome = request.form['localidade_nome'].strip()
-        unidade_nome = request.form['unidade_nome'].strip()
-        data = request.form['data']
-        responsavel = request.form['responsavel'].strip()
-        qtd_funcionarios = request.form['qtd_func'].strip()
-        vidros = request.form.get('vidros_altos', 'Não')
+        medidas_dinamicas = json.loads(medidas_json_str)
+    except json.JSONDecodeError:
+        flash('Erro ao processar medidas dinâmicas. Formato inválido.', 'danger')
+        return redirect(url_for('index'))
 
-        tipos_piso_selected = [p.replace('piso_', '') for p in request.form.keys() if p.startswith('piso_') and request.form[p] == 'on']
-        paredes_selected = [p.replace('parede_', '') for p in request.form.keys() if p.startswith('parede_') and request.form[p] == 'on']
+    dados = carregar_dados()
 
-        estacionamento = 'Sim' if 'estacionamento' in request.form else 'Não'
-        gramado = 'Sim' if 'gramado' in request.form else 'Não'
-        sala_curativo = 'Sim' if 'curativo' in request.form else 'Não'
-        sala_vacina = 'Sim' if 'vacina' in request.form else 'Não'
-        
-        # Validar dados essenciais
-        if not localidade_nome or not unidade_nome or not data:
-            flash('Nome da Localidade, Nome da Unidade e Data são campos obrigatórios.', 'danger')
+    if localidade_nome not in dados:
+        flash(f'Localidade "{localidade_nome}" não encontrada.', 'danger')
+        return redirect(url_for('index'))
+
+    # Verifica se a unidade já existe dentro da localidade (opcional, dependendo da regra de negócio)
+    for unidade in dados[localidade_nome]:
+        if unidade['nome'] == unidade_nome:
+            flash(f'Já existe uma unidade com o nome "{unidade_nome}" na localidade "{localidade_nome}".', 'danger')
             return redirect(url_for('index'))
 
-        # Encontra ou cria a localidade
-        localidade = Localidade.query.filter_by(nome=localidade_nome).first()
-        if not localidade:
-            localidade = Localidade(nome=localidade_nome)
-            db.session.add(localidade)
-            db.session.commit() # Commit para obter o ID da nova localidade
+    nova_unidade = {
+        "id": str(datetime.datetime.now().timestamp()), # ID único para a unidade
+        "nome": unidade_nome,
+        "data": data,
+        "responsavel": responsavel,
+        "tipo_piso": tipo_piso,
+        "area_interna_comprimento": area_interna_comprimento,
+        "area_interna_largura": area_interna_largura,
+        "area_externa_comprimento": area_externa_comprimento,
+        "area_externa_largura": area_externa_largura,
+        "vestiario_comprimento": vestiario_comprimento,
+        "vestiario_largura": vestiario_largura,
+        "tem_vidros": tem_vidros,
+        "vidros_tipo": vidros_tipo,
+        "vidros_quantidade": vidros_quantidade,
+        "vidros_observacao": vidros_observacao,
+        "tipo_parede": tipo_parede,
+        "observacoes_gerais": observacoes_gerais,
+        "medidas": json.dumps(medidas_dinamicas) # Armazena as medidas dinâmicas como string JSON
+    }
 
-        # Processar medidas do JSON
-        medidas_json_str = request.form.get('medidas_json', '[]')
-        medidas_data = json.loads(medidas_json_str)
+    dados[localidade_nome].append(nova_unidade)
+    salvar_dados(dados)
+    flash(f'Unidade "{unidade_nome}" adicionada com sucesso à localidade "{localidade_nome}"!', 'success')
 
-        # Extrair medidas específicas para as colunas diretas (se houver)
-        vidros_comprimento = ''
-        vidros_largura = ''
-        area_interna_comprimento = ''
-        area_interna_largura = ''
-        area_externa_comprimento = ''
-        area_externa_largura = ''
-        vestiario_comprimento = ''
-        vestiario_largura = ''
-
-        for tipo, comp, larg, area in medidas_data:
-            if tipo == 'Vidros':
-                vidros_comprimento = str(comp)
-                vidros_largura = str(larg)
-            elif tipo == 'Área Interna':
-                area_interna_comprimento = str(comp)
-                area_interna_largura = str(larg)
-            elif tipo == 'Área Externa':
-                area_externa_comprimento = str(comp)
-                area_externa_largura = str(larg)
-            elif tipo == 'Vestiário':
-                vestiario_comprimento = str(comp)
-                vestiario_largura = str(larg)
-
-        unidade = Unidade(
-            localidade_id=localidade.id,
-            nome=unidade_nome,
-            data=data,
-            responsavel=responsavel,
-            vidros=vidros,
-            tipos_piso=json.dumps(tipos_piso_selected),
-            paredes=json.dumps(paredes_selected),
-            estacionamento=estacionamento,
-            gramado=gramado,
-            sala_curativo=sala_curativo,
-            sala_vacina=sala_vacina,
-            qtd_funcionarios=qtd_funcionarios,
-            vidros_comprimento=vidros_comprimento,
-            vidros_largura=vidros_largura,
-            area_interna_comprimento=area_interna_comprimento,
-            area_interna_largura=area_interna_largura,
-            area_externa_comprimento=area_externa_comprimento,
-            area_externa_largura=area_externa_largura,
-            vestiario_comprimento=vestiario_comprimento,
-            vestiario_largura=vestiario_largura,
-            medidas=json.dumps(medidas_data) # Armazena todas as medidas como JSON
-        )
-        db.session.add(unidade)
-        db.session.commit()
-        flash(f'Unidade "{unidade_nome}" adicionada com sucesso à localidade "{localidade_nome}"!', 'success')
-        return redirect(url_for('index'))
-    except Exception as e:
-        flash(f'Erro ao adicionar unidade: {str(e)}', 'danger')
-        print(f"Error adding unit: {e}") # Para depuração no console
-        return redirect(url_for('index'))
-
-@app.route('/exportar_e_enviar', methods=['POST'])
-@login_required
-def exportar_e_enviar():
-    localidades = Localidade.query.all()
-    if not localidades:
-        flash('Não há dados para exportar.', 'info')
-        return redirect(url_for('index'))
-
-    wb = openpyxl.Workbook()
-    aba_detalhe = wb.active
-    aba_detalhe.title = "Detalhe Localidades"
-    aba_detalhe.append([
-        "Localidade", "Unidade", "Data", "Responsável", "Vidros Altos", "Tipos de Piso", "Paredes",
-        "Estacionamento", "Gramado", "Sala de Curativo", "Sala de Vacina", "Qtd Funcionários",
-        "Vidros (C)", "Vidros (L)", "Área Interna (C)", "Área Interna (L)",
-        "Área Externa (C)", "Área Externa (L)", "Vestiário (C)", "Vestiário (L)", "Outras Medidas Detalhadas"
-    ])
-
-    for local in localidades:
-        for unidade in local.unidades:
-            pisos = ", ".join(json.loads(unidade.tipos_piso or "[]"))
-            paredes = ", ".join(json.loads(unidade.paredes or "[]"))
-            
-            all_measures_formatted = []
-            if unidade.medidas:
-                try:
-                    all_measures = json.loads(unidade.medidas)
-                    for tipo, comp, larg, area in all_measures:
-                        all_measures_formatted.append(f"{tipo}: {comp}m x {larg}m = {area:.2f} m²")
-                except json.JSONDecodeError:
-                    all_measures_formatted.append("Erro de formato de medida")
-            
-            aba_detalhe.append([
-                local.nome, unidade.nome, unidade.data, unidade.responsavel,
-                unidade.vidros, pisos, paredes, unidade.estacionamento,
-                unidade.gramado, unidade.sala_curativo, unidade.sala_vacina,
-                unidade.qtd_funcionarios,
-                unidade.vidros_comprimento, unidade.vidros_largura,
-                unidade.area_interna_comprimento, unidade.area_interna_largura,
-                unidade.area_externa_comprimento, unidade.area_externa_largura,
-                unidade.vestiario_comprimento, unidade.vestiario_largura,
-                "; ".join(all_measures_formatted)
-            ])
-
-    buffer = io.BytesIO()
-    wb.save(buffer)
-    buffer.seek(0)
-
-    # Enviar por e-mail
+    # Após salvar, tenta enviar o e-mail
     try:
-        sender_email = os.environ.get('EMAIL_USER')
-        sender_password = os.environ.get('EMAIL_PASS')
-        smtp_server = os.environ.get('EMAIL_SERVER')
-        smtp_port = int(os.environ.get('EMAIL_PORT', 587)) # Default para 587 se não definida
-
-        if not all([sender_email, sender_password, smtp_server]):
-            flash('Configurações de e-mail incompletas. Verifique as variáveis de ambiente.', 'danger')
-            return redirect(url_for('index'))
-
-        msg = EmailMessage()
-        msg['Subject'] = 'Planilha de Localidades Cadastradas'
-        msg['From'] = sender_email
-        msg['To'] = "comercialservico2025@gmail.com" # E-mail do destinatário fixo
-        msg.set_content("Segue em anexo a planilha com os dados de localidades e unidades cadastradas no sistema.")
-        msg.add_attachment(buffer.read(), maintype='application', subtype='vnd.openxmlformats-officedocument.spreadsheetml.sheet', filename="localidades_e_unidades.xlsx")
-
-        with smtplib.SMTP(smtp_server, smtp_port) as server:
-            server.starttls() # Usar TLS para segurança
-            server.login(sender_email, sender_password)
-            server.send_message(msg)
-        flash("Planilha enviada para o e-mail fixo com sucesso!", 'success')
+        enviar_excel_por_email(localidade_nome, nova_unidade, dados)
     except Exception as e:
-        flash(f"Erro ao enviar e-mail: {str(e)}. Verifique as variáveis de ambiente do e-mail e a conexão.", 'danger')
-        print(f"Erro ao enviar e-mail: {e}")
+        flash(f'Unidade salva, mas houve um erro ao enviar o e-mail: {e}', 'warning')
+        print(f"Erro ao enviar e-mail: {e}") # Loga o erro para depuração
 
     return redirect(url_for('index'))
 
+
+@app.route('/ver_localidade/<nome_localidade>')
+@login_required
+def ver_localidade(nome_localidade):
+    """Exibe as unidades cadastradas para uma localidade específica."""
+    dados = carregar_dados()
+    localidade_info = {
+        "nome": nome_localidade,
+        "unidades": dados.get(nome_localidade, [])
+    }
+    return render_template('ver_localidade.html', localidade=localidade_info)
+
+@app.route('/salvar_unidade/<nome_localidade>/<id_unidade>', methods=['POST'])
+@login_required
+def salvar_unidade(nome_localidade, id_unidade):
+    """
+    Atualiza os dados de uma unidade específica.
+    Recebe os dados do formulário de edição via AJAX.
+    """
+    dados = carregar_dados()
+    localidade_unidades = dados.get(nome_localidade, [])
+
+    for i, unidade in enumerate(localidade_unidades):
+        if unidade.get('id') == id_unidade:
+            try:
+                # Atualiza os campos com os dados do formulário
+                unidade['nome'] = request.form.get('nome')
+                unidade['data'] = request.form.get('data')
+                unidade['responsavel'] = request.form.get('responsavel')
+                unidade['tipo_piso'] = request.form.get('tipo_piso')
+                
+                # Tratamento de vírgulas para campos numéricos
+                unidade['area_interna_comprimento'] = request.form.get('area_interna_comprimento', '').replace(',', '.')
+                unidade['area_interna_largura'] = request.form.get('area_interna_largura', '').replace(',', '.')
+                unidade['area_externa_comprimento'] = request.form.get('area_externa_comprimento', '').replace(',', '.')
+                unidade['area_externa_largura'] = request.form.get('area_externa_largura', '').replace(',', '.')
+                unidade['vestiario_comprimento'] = request.form.get('vestiario_comprimento', '').replace(',', '.')
+                unidade['vestiario_largura'] = request.form.get('vestiario_largura', '').replace(',', '.')
+
+                unidade['tem_vidros'] = request.form.get('tem_vidros') == 'True' # Campo checkbox
+                unidade['vidros_tipo'] = request.form.get('vidros_tipo', '')
+                unidade['vidros_quantidade'] = request.form.get('vidros_quantidade', '')
+                unidade['vidros_observacao'] = request.form.get('vidros_observacao', '')
+                unidade['tipo_parede'] = request.form.get('tipo_parede')
+                unidade['observacoes_gerais'] = request.form.get('observacoes_gerais')
+                
+                # As medidas dinâmicas vêm como string JSON
+                medidas_json_str = request.form.get('medidas_dinamicas_json', '[]')
+                unidade['medidas'] = medidas_json_str
+
+                salvar_dados(dados)
+                flash('Unidade atualizada com sucesso!', 'success')
+                return jsonify({"status": "success", "message": "Unidade atualizada com sucesso!"}), 200
+
+            except Exception as e:
+                flash(f'Erro ao atualizar unidade: {e}', 'danger')
+                print(f"Erro ao atualizar unidade: {e}")
+                return jsonify({"status": "error", "message": f"Erro ao atualizar unidade: {e}"}), 500
+    
+    flash('Unidade não encontrada.', 'danger')
+    return jsonify({"status": "error", "message": "Unidade não encontrada."}), 404
+
+@app.route('/excluir_unidade/<nome_localidade>/<id_unidade>', methods=['POST'])
+@login_required
+def excluir_unidade(nome_localidade, id_unidade):
+    """
+    Exclui uma unidade específica de uma localidade.
+    """
+    dados = carregar_dados()
+    
+    if nome_localidade not in dados:
+        flash(f'Localidade "{nome_localidade}" não encontrada.', 'danger')
+        return jsonify({"status": "error", "message": "Localidade não encontrada."}), 404
+
+    unidades_atuais = dados[nome_localidade]
+    
+    # Cria uma nova lista de unidades excluindo a que corresponde ao id_unidade
+    unidades_atualizadas = [u for u in unidades_atuais if u.get('id') != id_unidade]
+    
+    if len(unidades_atuais) == len(unidades_atualizadas):
+        # A unidade não foi encontrada se as listas tiverem o mesmo tamanho
+        flash(f'Unidade com ID "{id_unidade}" não encontrada na localidade "{nome_localidade}".', 'danger')
+        return jsonify({"status": "error", "message": "Unidade não encontrada."}), 404
+    
+    dados[nome_localidade] = unidades_atualizadas
+    salvar_dados(dados)
+    flash('Unidade excluída com sucesso!', 'success')
+    return jsonify({"status": "success", "message": "Unidade excluída com sucesso!"}), 200
+
+
+@app.route('/download_excel/<nome_localidade>')
+@login_required
+def download_excel(nome_localidade):
+    """
+    Gera e permite o download de um arquivo Excel para uma localidade.
+    """
+    dados = carregar_dados()
+    localidade = dados.get(nome_localidade)
+
+    if not localidade:
+        flash(f'Localidade "{nome_localidade}" não encontrada.', 'danger')
+        return redirect(url_for('index'))
+
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.title = f"Unidades de {nome_localidade}"
+
+    # Cabeçalho do Excel
+    headers = [
+        "Localidade", "Nome da Unidade", "Data", "Responsável", "Tipo de Piso",
+        "Área Interna (C)", "Área Interna (L)", "Área Externa (C)", "Área Externa (L)",
+        "Vestiário (C)", "Vestiário (L)",
+        "Tem Vidros", "Tipo de Vidro", "Quantidade de Vidros", "Observação Vidros",
+        "Tipo de Parede", "Observações Gerais", "Medidas Detalhadas"
+    ]
+    ws.append(headers)
+
+    # Preenche as linhas com os dados das unidades
+    for unidade in localidade:
+        medidas_detalhadas = ""
+        try:
+            medidas_json = json.loads(unidade.get('medidas', '[]'))
+            medidas_detalhadas = "; ".join([f"{tipo}: {c}x{l}={a}m²" for tipo, c, l, a in medidas_json])
+        except json.JSONDecodeError:
+            medidas_detalhadas = "Erro ao carregar medidas."
+        
+        row = [
+            nome_localidade,
+            unidade.get('nome'),
+            unidade.get('data'),
+            unidade.get('responsavel'),
+            unidade.get('tipo_piso'),
+            unidade.get('area_interna_comprimento'),
+            unidade.get('area_interna_largura'),
+            unidade.get('area_externa_comprimento'),
+            unidade.get('area_externa_largura'),
+            unidade.get('vestiario_comprimento'),
+            unidade.get('vestiario_largura'),
+            "Sim" if unidade.get('tem_vidros') else "Não",
+            unidade.get('vidros_tipo'),
+            unidade.get('vidros_quantidade'),
+            unidade.get('vidros_observacao'),
+            unidade.get('tipo_parede'),
+            unidade.get('observacoes_gerais'),
+            medidas_detalhadas
+        ]
+        ws.append(row)
+
+    # Salva o arquivo Excel em memória
+    excel_file_in_memory = io.BytesIO()
+    wb.save(excel_file_in_memory)
+    excel_file_in_memory.seek(0)
+
+    # Para download no navegador
+    from flask import send_file
+    return send_file(
+        excel_file_in_memory,
+        mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        as_attachment=True,
+        download_name=f'cadastro_{nome_localidade}.xlsx'
+    )
+
+def enviar_excel_por_email(local, info, dados_completos):
+    """
+    Gera um arquivo Excel da localidade e envia por e-mail.
+    Parâmetros:
+        local (str): O nome da localidade.
+        info (dict): As informações da unidade recém-adicionada.
+        dados_completos (dict): Todos os dados do aplicativo.
+    """
+    if not EMAIL_USER or not EMAIL_PASS or not EMAIL_SERVER:
+        print("Configurações de e-mail ausentes. Não será possível enviar o e-mail.")
+        return # Sai da função se as credenciais de e-mail não estiverem configuradas
+
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.title = f"Unidades de {local}"
+
+    # Cabeçalho do Excel
+    headers = [
+        "Localidade", "Nome da Unidade", "Data", "Responsável", "Tipo de Piso",
+        "Área Interna (C)", "Área Interna (L)", "Área Externa (C)", "Área Externa (L)",
+        "Vestiário (C)", "Vestiário (L)",
+        "Tem Vidros", "Tipo de Vidro", "Quantidade de Vidros", "Observação Vidros",
+        "Tipo de Parede", "Observações Gerais", "Medidas Detalhadas"
+    ]
+    ws.append(headers)
+
+    # Preenche as linhas com os dados das unidades da localidade
+    for unidade in dados_completos.get(local, []):
+        medidas_detalhadas = ""
+        try:
+            medidas_json = json.loads(unidade.get('medidas', '[]'))
+            medidas_detalhadas = "; ".join([f"{tipo}: {c}x{l}={a}m²" for tipo, c, l, a in medidas_json])
+        except json.JSONDecodeError:
+            medidas_detalhadas = "Erro ao carregar medidas."
+        
+        row = [
+            local,
+            unidade.get('nome'),
+            unidade.get('data'),
+            unidade.get('responsavel'),
+            unidade.get('tipo_piso'),
+            unidade.get('area_interna_comprimento'),
+            unidade.get('area_interna_largura'),
+            unidade.get('area_externa_comprimento'),
+            unidade.get('area_externa_largura'),
+            unidade.get('vestiario_comprimento'),
+            unidade.get('vestiario_largura'),
+            "Sim" if unidade.get('tem_vidros') else "Não",
+            unidade.get('vidros_tipo'),
+            unidade.get('vidros_quantidade'),
+            unidade.get('vidros_observacao'),
+            unidade.get('tipo_parede'),
+            unidade.get('observacoes_gerais'),
+            medidas_detalhadas
+        ]
+        ws.append(row)
+
+    # Salva o arquivo Excel em memória
+    excel_file_in_memory = io.BytesIO()
+    wb.save(excel_file_in_memory)
+    excel_file_in_memory.seek(0) # Volta ao início do arquivo em memória
+
+    # Configuração do e-mail
+    msg = MIMEMultipart()
+    msg['From'] = EMAIL_USER
+    msg['To'] = EMAIL_USER # Pode ser um destinatário fixo ou configurável
+    msg['Subject'] = f"Nova Unidade Cadastrada: {info.get('nome', 'N/A')} em {local}"
+
+    nome_arquivo = f"cadastro_{local}_{info.get('nome', 'unidade').replace(' ', '_')}_{datetime.datetime.now().strftime('%Y%m%d%H%M%S')}.xlsx"
+
+    # Corpo do e-mail (texto puro)
+    body = f"""
+    Uma nova unidade foi cadastrada no sistema.
+
+    Detalhes da Unidade:
+    Localidade: {local}
+    Nome da Unidade: {info.get('nome', 'Não informado')}
+    Data: {info.get('data', 'Não informada')}
+    Responsável: {info.get('responsavel', 'Não informado')}
+
+    O arquivo Excel com todos os dados atualizados da localidade {local} está anexado.
+
+    Atenciosamente,
+    Seu Sistema de Cadastro
+    """
+    
+    # Anexando o corpo do e-mail usando MIMEText (correção anterior)
+    msg.attach(MIMEText(body, 'plain', 'utf-8'))
+
+    # Anexando o arquivo Excel
+    part = MIMEBase('application', 'octet-stream')
+    part.set_payload(excel_file_in_memory.read())
+    encoders.encode_base64(part) # Codifica o anexo em base64
+    part.add_header('Content-Disposition', f'attachment; filename=\"{nome_arquivo}\"')
+    msg.attach(part)
+
+    try:
+        # Tenta enviar o e-mail via SMTP
+        with smtplib.SMTP(EMAIL_SERVER, EMAIL_PORT) as server:
+            server.starttls()  # Inicia TLS para comunicação segura
+            server.login(EMAIL_USER, EMAIL_PASS) # Autentica com o servidor SMTP
+            server.send_message(msg) # Envia a mensagem completa
+        
+        print(f"E-mail enviado com sucesso para {EMAIL_USER} sobre {local} - {info.get('nome', 'N/A')}")
+        return jsonify({"status": "success", "message": "Unidade salva e Excel enviado por e-mail com sucesso!"}), 200
+
+    except Exception as e:
+        print(f"Erro ao enviar e-mail: {e}") # Loga o erro para depuração
+        return jsonify({"status": "error", "message": f"Erro ao enviar e-mail: {e}"}), 500
+
+
 if __name__ == '__main__':
-    with app.app_context():
-        db.create_all()
-        # Cria um usuário admin padrão se não existir
-        if not User.query.filter_by(username='admin').first():
-            # Mude 'senha_segura_admin' para uma senha forte em produção!
-            hashed_password = generate_password_hash('senha_segura_admin')
-            admin_user = User(username='admin', password=hashed_password)
-            db.session.add(admin_user)
-            db.session.commit()
-            print("Usuário 'admin' com senha 'senha_segura_admin' criado (mude em produção!).")
-    app.run(debug=True) # Mude debug para False em produção
+    app.run(debug=True)
