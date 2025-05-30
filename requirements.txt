@@ -1,5 +1,3 @@
-Flask
-Flask-SQLAlchemy
-Werkzeug
-openpyxl
-gunicorn
+Flask==2.3.2  # Ou a versão específica que você usa/prefere, mas 2.3.2 é estável
+gunicorn==21.2.0 # Versão comum para produção Flask
+openpyxl==3.1.2 # Para manipulação de arquivos Excel

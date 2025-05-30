@@ -9,7 +9,7 @@ from email.mime.multipart import MIMEMultipart
 from email.mime.base import MIMEBase
 from email.mime.text import MIMEText
 from email import encoders
-from functools import wraps
+from functools import wraps # Importar wraps para o decorador
 
 app = Flask(__name__)
 
@@ -17,13 +17,14 @@ app = Flask(__name__)
 # A SECRET_KEY é CRUCIAL para a segurança das sessões Flask.
 # No ambiente de produção (Render), SEMPRE defina esta chave como uma Variável de Ambiente.
 # Exemplo no Render: Key: SECRET_KEY, Value: sua_string_longa_e_aleatoria_aqui
+# Você pode gerar uma no terminal Python com: import os; print(os.urandom(24).hex())
 # Se não for definida no ambiente, usa um valor padrão APENAS para desenvolvimento local.
-app.secret_key = os.environ.get('SECRET_KEY', 'uma_chave_secreta_padrao_muito_fraca_para_dev')
+app.secret_key = os.environ.get('SECRET_KEY', 'uma_chave_secreta_padrao_muito_fraca_para_dev_nao_usar_em_prod')
 
 # --- Usuários Fixos (Lista Fixa) ---
 # Dicionário de usuários e senhas permitidos para autenticação.
 # Essas credenciais estão HARDCODED no código.
-# Se precisar de um sistema de usuários mais dinâmico ou seguro, considere um banco de dados.
+# ALTERE ESTES VALORES para as suas credenciais desejadas.
 USERS = {
     "admin": "admin123",        # Usuário de exemplo: "admin" com senha "admin123"
     "gerente": "senha_gerente", # Usuário de exemplo: "gerente" com senha "senha_gerente"
@@ -31,8 +32,8 @@ USERS = {
 }
 
 # Nome do arquivo onde os dados das localidades são armazenados.
-# No Render, este arquivo será salvo no sistema de arquivos do contêiner.
-# Dados salvos aqui podem persistir entre reinícios de container, mas não são garantidos
+# Este arquivo será salvo no sistema de arquivos do contêiner do Render.
+# Dados salvos aqui podem persistir entre reinícios de container, mas NÃO são garantidos
 # em caso de recriação completa do contêiner ou em planos gratuitos sem disco persistente dedicado.
 ARQUIVO_DADOS = "localidades.json"
 
@@ -52,6 +53,7 @@ EMAIL_USER = os.environ.get('EMAIL_USER')
 EMAIL_PASS = os.environ.get('EMAIL_PASS')
 EMAIL_SERVER = os.environ.get('EMAIL_SERVER')
 # EMAIL_PORT é opcional; se não definida, usa 587 como padrão.
+# Garante que a porta seja um inteiro.
 EMAIL_PORT = int(os.environ.get('EMAIL_PORT', 587))
 
 def carregar_dados():
@@ -63,6 +65,12 @@ def carregar_dados():
             return json.load(f)
     except json.JSONDecodeError as e:
         print(f"Erro ao carregar {ARQUIVO_DADOS}: {e}. Retornando dicionário vazio.")
+        # Pode ser útil logar a stack trace completa para depuração
+        # import traceback
+        # traceback.print_exc()
+        return {}
+    except Exception as e:
+        print(f"Erro inesperado ao carregar {ARQUIVO_DADOS}: {e}.")
         return {}
 
 def salvar_dados(dados):
@@ -93,7 +101,7 @@ def login_required(view):
     Decorador para rotas que exigem que o usuário esteja autenticado.
     Se o usuário não estiver logado, redireciona para a página de login.
     """
-    @wraps(view)
+    @wraps(view) # Importante para preservar metadados da função original
     def wrapped_view(**kwargs):
         if g.user is None:
             flash('Você precisa estar logado para acessar esta página.', 'danger')
@@ -119,17 +127,17 @@ def login():
         error = None
         if username not in USERS:
             error = 'Nome de usuário incorreto.'
-        elif USERS[username] != password:
+        elif USERS[username] != password: # Comparação direta de senha (não ideal para produção real)
             error = 'Senha incorreta.'
 
         if error is None:
-            session.clear() # Limpa qualquer sessão anterior
+            session.clear() # Limpa qualquer sessão anterior para evitar conflitos
             session['user_id'] = username # Armazena o username na sessão
             flash(f'Bem-vindo, {username}!', 'success')
             return redirect(url_for('index'))
         else:
             flash(error, 'danger') # Exibe mensagem de erro
-
+            
     return render_template('login.html')
 
 @app.route('/logout')
@@ -259,12 +267,11 @@ def adicionar_unidade():
 
     # Após salvar, tenta enviar o e-mail
     try:
-        # A função enviar_excel_por_email é chamada para enviar os dados atualizados da localidade.
-        # Ela retorna um status HTTP, mas aqui estamos apenas logando e mostrando flash messages.
+        # Chama a função de envio de e-mail. Ela já imprime mensagens no console/logs.
         enviar_excel_por_email(localidade_nome, nova_unidade, dados)
     except Exception as e:
         flash(f'Unidade salva, mas houve um erro ao enviar o e-mail: {e}', 'warning')
-        print(f"Erro ao enviar e-mail: {e}") # Loga o erro para depuração no Render
+        print(f"Erro ao enviar e-mail na rota adicionar_unidade: {e}") # Loga o erro para depuração no Render
 
     return redirect(url_for('index'))
 
@@ -433,6 +440,7 @@ def download_excel(nome_localidade):
 def enviar_excel_por_email(local, info_unidade_adicionada, dados_completos):
     """
     Gera um arquivo Excel da localidade e envia por e-mail.
+    Esta função imprime logs e não retorna jsonify, pois é chamada dentro de uma rota que já tem um retorno.
     Parâmetros:
         local (str): O nome da localidade.
         info_unidade_adicionada (dict): As informações da unidade recém-adicionada.
@@ -441,8 +449,7 @@ def enviar_excel_por_email(local, info_unidade_adicionada, dados_completos):
     # Verifica se as configurações de e-mail estão presentes.
     if not EMAIL_USER or not EMAIL_PASS or not EMAIL_SERVER:
         print("Configurações de e-mail ausentes (EMAIL_USER, EMAIL_PASS, EMAIL_SERVER). Não será possível enviar o e-mail.")
-        # Retorna um status de erro para indicar que o e-mail não foi enviado.
-        return jsonify({"status": "error", "message": "Configurações de e-mail ausentes."}), 500
+        return # Sai da função
 
     wb = openpyxl.Workbook()
     ws = wb.active
@@ -530,8 +537,6 @@ def enviar_excel_por_email(local, info_unidade_adicionada, dados_completos):
 
     try:
         # Tenta enviar o e-mail via SMTP
-        # Usar with smtplib.SMTP_SSL() para portas 465 (SSL/TLS implícito)
-        # ou smtplib.SMTP() com server.starttls() para portas como 587 (STARTTLS)
         # O Render geralmente suporta a porta 587 com STARTTLS.
         with smtplib.SMTP(EMAIL_SERVER, EMAIL_PORT) as server:
             server.starttls()  # Inicia TLS para comunicação segura
@@ -539,12 +544,10 @@ def enviar_excel_por_email(local, info_unidade_adicionada, dados_completos):
             server.send_message(msg) # Envia a mensagem completa
         
         print(f"E-mail enviado com sucesso para {EMAIL_USER} sobre {local} - {info_unidade_adicionada.get('nome', 'N/A')}")
-        return jsonify({"status": "success", "message": "Excel enviado por e-mail com sucesso!"}), 200
 
     except Exception as e:
         print(f"Erro ao enviar e-mail: {e}") # Loga o erro para depuração no Render
-        # É importante retornar uma resposta JSON para chamadas AJAX em caso de erro.
-        return jsonify({"status": "error", "message": f"Erro ao enviar e-mail: {e}"}), 500
+        # Não está retornando jsonify aqui, pois a rota adicionar_unidade já cuida do redirecionamento/flash.
 
 # Esta parte só é executada quando o script é rodado diretamente (e.g., python app.py)
 # Não será executada quando o gunicorn iniciar a aplicação no Render.

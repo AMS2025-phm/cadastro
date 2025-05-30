@@ -1,23 +1,12 @@
-# Exported from Render on 2025-05-30T14:00:00Z (Data Exemplo)
+# Exported from Render on 2025-05-28T19:58:20Z (ou a data do seu export)
 services:
 - type: web
-  name: cadastro_web_render
+  name: cadastro_web_render # Nome do seu serviço no Render
   runtime: python
-  repo: https://github.com/AMS-phm/cadastro # <--- MUDE ISSO!
-  plan: free
-  region: oregon # ou outra região de sua preferência
-  buildCommand: pip install -r requirements.txt
-  startCommand: gunicorn app:app
-  autoDeployTrigger: commit
-  envVars:
-    - key: FLASK_SECRET_KEY # Chave secreta do Flask
-      sync: false # Deixe false para inserir manualmente no Render
-    - key: EMAIL_USER # Seu email para enviar planilhas (ex: seu.email@gmail.com)
-      sync: false
-    - key: EMAIL_PASS # Senha de app do seu email (gerada no Google/Outlook, etc.)
-      sync: false
-    - key: EMAIL_SERVER # Servidor SMTP (ex: smtp.gmail.com)
-      sync: false
-    - key: EMAIL_PORT # Porta SMTP (ex: 587)
-      sync: false
+  repo: https://github.com/AMS2025-phm/cadastro_web_render # O URL do seu repositório Git
+  plan: free # Ou starter/pro, dependendo do seu plano
+  region: oregon # A região onde seu serviço será implantado
+  buildCommand: pip install -r requirements.txt # Comando para instalar dependências
+  startCommand: gunicorn app:app # Comando para iniciar a aplicação Flask com Gunicorn
+  autoDeployTrigger: commit # Isso garante que um novo deploy seja acionado em cada commit
 version: "1"
