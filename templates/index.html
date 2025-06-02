@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <title>Cadastro de Unidade</title>
+    <style>
+        body { font-family: Arial; background: #f4f4f4; padding: 20px; }
+        .container { background: #fff; padding: 20px; border-radius: 8px; max-width: 600px; margin: auto; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+        h1, h2 { text-align: center; }
+        label { display: block; margin-top: 10px; }
+        input, select { width: 100%; padding: 8px; margin-top: 5px; }
+        .checkbox-group { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 5px; }
+        .checkbox-group label { display: flex; align-items: center; }
+        button { margin-top: 15px; padding: 10px; width: 100%; background: #007bff; color: #fff; border: none; border-radius: 4px; cursor: pointer; }
+        button:hover { background: #0056b3; }
+    </style>
+</head>
+<body>
+<div class="container">
+    <h1>Cadastro de Unidade</h1>
+    <form method="POST" action="/salvar_unidade">
+        <label for="localidade">Localidade:</label>
+        <input type="text" name="localidade" required>
+
+        <label for="unidade">Unidade:</label>
+        <input type="text" name="unidade" required>
+
+        <label for="data">Data:</label>
+        <input type="date" name="data" required>
+
+        <label for="responsavel">Responsável:</label>
+        <input type="text" name="responsavel">
+
+        <label for="qtd_func">Quantidade de Funcionários:</label>
+        <input type="number" name="qtd_func" min="0">
+
+        <label>Tipos de Piso:</label>
+        <div class="checkbox-group">
+            <label><input type="checkbox" name="piso_Paviflex"> Paviflex</label>
+            <label><input type="checkbox" name="piso_Cerâmica"> Cerâmica</label>
+            <label><input type="checkbox" name="piso_Porcelanato"> Porcelanato</label>
+            <label><input type="checkbox" name="piso_Granilite"> Granilite</label>
+            <label><input type="checkbox" name="piso_Cimento Queimado"> Cimento Queimado</label>
+            <label><input type="checkbox" name="piso_Epoxi"> Epóxi</label>
+            <label><input type="checkbox" name="piso_Ardósia"> Ardósia</label>
+            <label><input type="checkbox" name="piso_Outros"> Outros</label>
+        </div>
+
+        <label>Vidros Altos:</label>
+        <label><input type="radio" name="vidros_altos" value="Sim"> Sim</label>
+        <label><input type="radio" name="vidros_altos" value="Não" checked> Não</label>
+
+        <label>Paredes:</label>
+        <div class="checkbox-group">
+            <label><input type="checkbox" name="parede_Alvenaria"> Alvenaria</label>
+            <label><input type="checkbox" name="parede_Estuque"> Estuque</label>
+            <label><input type="checkbox" name="parede_Divisórias"> Divisórias</label>
+        </div>
+
+        <label>Outras Informações:</label>
+        <div class="checkbox-group">
+            <label><input type="checkbox" name="estacionamento"> Estacionamento</label>
+            <label><input type="checkbox" name="gramado"> Gramado</label>
+            <label><input type="checkbox" name="curativo"> Sala de Curativo</label>
+            <label><input type="checkbox" name="vacina"> Sala de Vacina</label>
+        </div>
+
+        <h2>Medidas</h2>
+        <label for="comprimento">Comprimento (m):</label>
+        <input type="number" id="comprimento" step="0.01">
+
+        <label for="largura">Largura (m):</label>
+        <input type="number" id="largura" step="0.01">
+
+        <label>Tipo de Medida:</label>
+        <div class="checkbox-group">
+            <label><input type="checkbox" class="tipo-medida" value="Vidro"> Vidro</label>
+            <label><input type="checkbox" class="tipo-medida" value="Sanitário-Vestiário"> Sanitário-Vestiário</label>
+            <label><input type="checkbox" class="tipo-medida" value="Área Interna"> Área Interna</label>
+            <label><input type="checkbox" class="tipo-medida" value="Área Externa"> Área Externa</label>
+        </div>
+
+        <button type="button" onclick="adicionarMedida()">Adicionar Medida</button>
+
+        <ul id="listaMedidas"></ul>
+
+        <input type="hidden" name="medidas_json" id="medidas_json" value="[]">
+
+        <button type="submit">Salvar Unidade</button>
+    </form>
+
+    <h1>Exportar e Enviar por E-mail</h1>
+    <form method="POST" action="/exportar_excel_e_enviar_email">
+        <label for="selected_unit_to_export">Unidade (Formato: Localidade - Unidade):</label>
+        <input type="text" name="selected_unit_to_export" required>
+        <button type="submit">Exportar e Enviar</button>
+    </form>
+</div>
+
+<script>
+    const medidas = [];
+
+    function adicionarMedida() {
+        const comp = parseFloat(document.getElementById('comprimento').value);
+        const larg = parseFloat(document.getElementById('largura').value);
+        if (isNaN(comp) || isNaN(larg) || comp <= 0 || larg <= 0) {
+            alert("Comprimento e Largura devem ser números positivos.");
+            return;
+        }
+
+        const tipos = Array.from(document.querySelectorAll('.tipo-medida:checked')).map(cb => cb.value);
+        if (tipos.length === 0) {
+            alert("Selecione ao menos um tipo de medida.");
+            return;
+        }
+
+        const area = (comp * larg).toFixed(2);
+        tipos.forEach(tipo => {
+            medidas.push([tipo, comp, larg, parseFloat(area)]);
+            const li = document.createElement('li');
+            li.textContent = \`\${tipo}: \${comp}m x \${larg}m = \${area} m²\`;
+            document.getElementById('listaMedidas').appendChild(li);
+        });
+
+        document.getElementById('medidas_json').value = JSON.stringify(medidas);
+        document.getElementById('comprimento').value = '';
+        document.getElementById('largura').value = '';
+        document.querySelectorAll('.tipo-medida').forEach(cb => cb.checked = false);
+    }
+</script>
+</body>
+</html>

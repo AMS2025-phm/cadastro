@@ -1,0 +1,15 @@
+services:
+  - type: web
+    name: cadastro-unidades
+    env: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn app:app
+    envVars:
+      - key: EMAIL_USER
+        sync: false
+      - key: EMAIL_PASS
+        sync: false
+      - key: EMAIL_SERVER
+        sync: false
+      - key: EMAIL_PORT
+        sync: false
