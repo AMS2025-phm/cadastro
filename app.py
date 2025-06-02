@@ -1,7 +1,7 @@
 from flask import Flask, render_template, request, redirect, url_for, flash, g
 
 app = Flask(__name__)
-app.secret_key = 'super-secret'  # Altere para algo mais seguro
+app.secret_key = '40fa53a9d12566c73e2281d05078e10d'  # Altere para algo mais seguro
 @app.route('/adicionar_unidade', methods=['POST'])
 
 @login_required
@@ -43,7 +43,7 @@ def adicionar_unidade():
         "data": data,
         "responsavel": responsavel,
         "tipos_piso": tipos_piso_selecionados,
-                                                                                                        "possui_estacionamento": possui_estacionamento,
+        "possui_estacionamento": possui_estacionamento,
         "estacionamento_coberto": estacionamento_coberto,
         "possui_gramado": possui_gramado,
         "possui_sala_vacinacao": possui_sala_vacinacao,
