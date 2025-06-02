@@ -1,0 +1,677 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Unidades de {{ localidade.nome }} - Sistema de Cadastro</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js" integrity="sha256-/JqT3SQfawRcv/BIHPThkBvs0OEvtFFmqPF/lYI/Cxo=" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+    <style>
+        .container {
+            max-width: 900px; 
+            margin-top: 30px;
+        }
+        .unit-card {
+            background-color: #f9f9f9;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+            position: relative; 
+        }
+        .unit-card h3 {
+            margin-top: 0;
+            color: #333;
+            border-bottom: 1px solid #eee;
+            padding-bottom: 10px;
+            margin-bottom: 15px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .unit-card p, .unit-card ul {
+            margin: 8px 0;
+            color: #666;
+        }
+         .unit-card ul {
+            list-style-type: none; 
+            padding-left: 0; /* Removido padding para alinhar melhor com <p> */
+        }
+        .unit-card ul li {
+            margin-bottom: 5px;
+            /* padding-left: 20px;  removido bullet customizado para simplificar */
+            position: relative;
+        }
+        /* .unit-card ul li::before {
+            content: "•"; 
+            color: #007bff; 
+            position: absolute;
+            left: 0;
+            font-weight: bold;
+        } */
+        .no-units {
+            text-align: center;
+            padding: 40px;
+            background-color: #e9f7fe;
+            border-radius: 8px;
+            border: 1px solid #cce7ff;
+            color: #0056b3;
+            margin-top: 30px;
+        }
+        .actions { /* Para botões dentro do card h3 */
+            display: flex;
+            gap: 10px;
+        }
+
+        /* Estilos do Modal */
+        .modal {
+            display: none; 
+            position: fixed; 
+            z-index: 1000; 
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            overflow: auto; 
+            background-color: rgba(0,0,0,0.4); 
+            /* Removido justify/align center para permitir rolagem no modal em si */
+        }
+
+        .modal-content {
+            background-color: #fefefe;
+            margin: 5% auto; /* Margem para centralizar e dar espaço no topo/baixo */
+            padding: 30px;
+            border: 1px solid #888;
+            border-radius: 10px;
+            width: 90%;
+            max-width: 750px; /* Aumentado um pouco */
+            box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+            animation: fadeIn 0.3s;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(-20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .close-button {
+            color: #aaa;
+            float: right;
+            font-size: 28px;
+            font-weight: bold;
+            line-height: 1;
+            cursor: pointer;
+            transition: color 0.3s;
+        }
+
+        .close-button:hover,
+        .close-button:focus {
+            color: #000;
+            text-decoration: none;
+        }
+        
+        .modal .form-group {
+            margin-bottom: 15px;
+        }
+        .modal .form-group label {
+            font-weight: bold;
+            display: block;
+            margin-bottom: 5px;
+        }
+        .modal .form-group input[type="text"],
+        .modal .form-group input[type="date"],
+        .modal .form-group input[type="number"],
+        .modal .form-group select,
+        .modal .form-group textarea {
+            width: calc(100% - 22px); /* Ajustado para padding e borda */
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            box-sizing: border-box;
+        }
+        .modal .select2-container { /* Garante que select2 ocupe a largura */
+             width: calc(100% - 0px) !important; /* O 0px é só para forçar o important se necessário */
+             box-sizing: border-box;
+        }
+        .modal .inline-fields {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 15px;
+        }
+        .modal .inline-fields > div {
+            flex: 1;
+        }
+        .modal .btn-group {
+            display: flex;
+            gap: 10px;
+            margin-top: 20px;
+            justify-content: flex-end;
+        }
+        .modal .btn-group .btn {
+            flex: 0 1 auto;
+        }
+        .modal .medidas-dinamicas {
+            border: 1px solid #ddd; padding: 15px; border-radius: 8px;
+            background-color: #fcfcfc; margin-top: 20px;
+        }
+        .modal .medidas-list {
+            list-style: none; padding: 0; margin-top: 10px; max-height: 150px;
+            overflow-y: auto; border: 1px solid #eee; padding: 10px; border-radius: 5px;
+        }
+        .modal .medidas-list li {
+            background-color: #e9ecef; padding: 8px 12px; margin-bottom: 5px; border-radius: 4px;
+            display: flex; justify-content: space-between; align-items: center; font-size: 0.9em;
+        }
+        .modal .medidas-list li.selected { background-color: #cfe2ff; border-color: #0d6efd; }
+        .modal .medidas-list li button {
+            background: none; border: none; color: #dc3545; cursor: pointer; font-size: 1.1em;
+        }
+        .modal .form-group small { /* Para dicas em campos multiple */
+            display: block;
+            font-size: 0.8em;
+            color: #6c757d;
+            margin-top: 4px;
+        }
+        .modal .radio-label-inline {
+            font-weight: normal;
+            margin-left: 5px;
+            margin-right: 15px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header class="app-header">
+            <h1>Unidades de {{ localidade.nome }}</h1>
+            <nav>
+                <a href="{{ url_for('index') }}" class="btn">Voltar ao Início</a>
+                <a href="{{ url_for('logout') }}" class="btn btn-danger">Sair ({{ g.user.username }})</a>
+            </nav>
+        </header>
+
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                <ul class="flashes">
+                    {% for category, message in messages %}
+                        <li class="{{ category }}">{{ message }}</li>
+                    {% endfor %}
+                </ul>
+            {% endif %}
+        {% endwith %}
+
+        {% if localidade.unidades %}
+            {% for unidade in localidade.unidades %}
+                <div class="unit-card" id="unit-card-{{ unidade.id }}">
+                    <h3>
+                        {{ unidade.nome }}
+                        <div class="actions"> <button class="btn btn-secondary btn-small edit-btn" data-unit-id="{{ unidade.id }}">Editar</button>
+                            <button class="btn btn-danger btn-small delete-btn" data-unit-id="{{ unidade.id }}">Excluir</button>
+                        </div>
+                    </h3>
+                    <p><strong>Data:</strong> {{ unidade.data }}</p>
+                    <p><strong>Responsável:</strong> {{ unidade.responsavel }}</p>
+                    
+                    <p><strong>Tipo(s) de Piso:</strong> 
+                        {% if unidade.tipos_piso %}
+                            {{ unidade.tipos_piso | join(', ') }}
+                        {% else %}
+                            Não informado
+                        {% endif %}
+                    </p>
+
+                    <h4>Medidas Fixas:</h4>
+                    <ul>
+                        {% if unidade.area_interna_comprimento and unidade.area_interna_largura and unidade.area_interna_comprimento|string != "" and unidade.area_interna_largura|string != "" %}
+                            <li>Área Interna: {{ unidade.area_interna_comprimento }}m x {{ unidade.area_interna_largura }}m = {{ (unidade.area_interna_comprimento | float * unidade.area_interna_largura | float) | round(2) }} m²</li>
+                        {% endif %}
+                        {% if unidade.area_externa_comprimento and unidade.area_externa_largura and unidade.area_externa_comprimento|string != "" and unidade.area_externa_largura|string != "" %}
+                            <li>Área Externa: {{ unidade.area_externa_comprimento }}m x {{ unidade.area_externa_largura }}m = {{ (unidade.area_externa_comprimento | float * unidade.area_externa_largura | float) | round(2) }} m²</li>
+                        {% endif %}
+                        {% if unidade.vestiario_comprimento and unidade.vestiario_largura and unidade.vestiario_comprimento|string != "" and unidade.vestiario_largura|string != "" %}
+                            <li>Vestiário: {{ unidade.vestiario_comprimento }}m x {{ unidade.vestiario_largura }}m = {{ (unidade.vestiario_comprimento | float * unidade.vestiario_largura | float) | round(2) }} m²</li>
+                        {% endif %}
+                    </ul>
+
+                    <h4>Medidas de Vidros:</h4>
+                    <ul>
+                        <li>Possui Vidros: {% if unidade.tem_vidros %}Sim{% else %}Não{% endif %}</li>
+                        {% if unidade.tem_vidros %}
+                            <li>Tipo de Vidro: {{ unidade.vidros_tipo or 'Não informado' }}</li>
+                            <li>Quantidade de Vidros: {{ unidade.vidros_quantidade or 'Não informado' }}</li>
+                            <li>Observação Vidros: {{ unidade.vidros_observacao or 'Nenhuma' }}</li>
+                            <li>Possui Vidro Alto: {% if unidade.possui_vidro_alto %}Sim{% else %}Não{% endif %}</li>
+                            {% if unidade.possui_vidro_alto %}
+                                <li>Vidro Alto é Perigoso: {% if unidade.vidro_alto_perigoso %}Sim{% else %}Não{% endif %}</li>
+                            {% endif %}
+                        {% endif %}
+                    </ul>
+
+                    <p><strong>Tipo(s) de Parede:</strong> 
+                        {% if unidade.tipos_parede %}
+                            {{ unidade.tipos_parede | join(', ') }}
+                        {% else %}
+                            Não informado
+                        {% endif %}
+                    </p>
+
+                    <h4>Observações Gerais:</h4>
+                    <p>{{ unidade.observacoes_gerais or 'Nenhuma' }}</p>
+
+                    <h4>Todas as Medidas Cadastradas:</h4>
+                    <ul>
+                        {# 'medidas' é uma string JSON, o filtro 'from_json' converte para lista Python #}
+                        {% set all_medidas = unidade.medidas | from_json %} 
+                        {% if all_medidas %}
+                            {% for medida_item in all_medidas %} {# Renomeado para evitar conflito #}
+                                <li>{{ medida_item[0] }}: {{ medida_item[1] }}m x {{ medida_item[2] }}m = {{ medida_item[3] | round(2) }} m²</li>
+                            {% endfor %}
+                        {% else %}
+                            <li>Nenhuma medida detalhada cadastrada.</li>
+                        {% endif %}
+                    </ul>
+                </div>
+            {% endfor %}
+        {% else %}
+            <div class="no-units">
+                <p>Nenhuma unidade cadastrada para esta localidade ainda.</p>
+                <p>Volte à página inicial para adicionar uma nova unidade.</p>
+            </div>
+        {% endif %}
+    </div>
+
+    <div id="editUnitModal" class="modal">
+        <div class="modal-content">
+            <span class="close-button modal-close-trigger">&times;</span> <h2>Editar Unidade</h2>
+            <form id="editForm" method="POST">
+                <input type="hidden" id="edit_unit_id" name="id">
+                <div class="form-group">
+                    <label for="edit_nome">Nome da Unidade:</label>
+                    <input type="text" id="edit_nome" name="nome" required>
+                </div>
+                <div class="form-group">
+                    <label for="edit_data">Data:</label>
+                    <input type="date" id="edit_data" name="data" required>
+                </div>
+                <div class="form-group">
+                    <label for="edit_responsavel">Responsável:</label>
+                    <input type="text" id="edit_responsavel" name="responsavel" required>
+                </div>
+                
+                <div class="form-group">
+                    <label for="edit_tipos_piso">Tipo(s) de Piso:</label>
+                    <select id="edit_tipos_piso" name="tipos_piso" multiple required class="select2-multiple-modal">
+                        {# Opções serão populadas via JavaScript #}
+                    </select>
+                    <small>Segure Ctrl (ou Cmd em Mac) para selecionar múltiplos.</small>
+                </div>
+
+                <h3>Medidas de Áreas Fixas:</h3>
+                <div class="inline-fields">
+                    <div><label for="edit_area_interna_comprimento">Área Interna (C):</label><input type="text" id="edit_area_interna_comprimento" name="area_interna_comprimento"></div>
+                    <div><label for="edit_area_interna_largura">Área Interna (L):</label><input type="text" id="edit_area_interna_largura" name="area_interna_largura"></div>
+                </div>
+                <div class="inline-fields">
+                    <div><label for="edit_area_externa_comprimento">Área Externa (C):</label><input type="text" id="edit_area_externa_comprimento" name="area_externa_comprimento"></div>
+                    <div><label for="edit_area_externa_largura">Área Externa (L):</label><input type="text" id="edit_area_externa_largura" name="area_externa_largura"></div>
+                </div>
+                <div class="inline-fields">
+                    <div><label for="edit_vestiario_comprimento">Vestiário (C):</label><input type="text" id="edit_vestiario_comprimento" name="vestiario_comprimento"></div>
+                    <div><label for="edit_vestiario_largura">Vestiário (L):</label><input type="text" id="edit_vestiario_largura" name="vestiario_largura"></div>
+                </div>
+
+                <h3>Medidas de Vidros:</h3>
+                <div class="form-group">
+                    <label>A unidade possui vidros?</label>
+                    <input type="radio" id="edit_tem_vidros_sim" name="tem_vidros" value="True"> <label for="edit_tem_vidros_sim" class="radio-label-inline">Sim</label>
+                    <input type="radio" id="edit_tem_vidros_nao" name="tem_vidros" value="False"> <label for="edit_tem_vidros_nao" class="radio-label-inline">Não</label>
+                </div>
+                <div id="edit_vidros_campos_gerais" style="display: none;">
+                    <div class="form-group"><label for="edit_vidros_tipo">Tipo de Vidro:</label><input type="text" id="edit_vidros_tipo" name="vidros_tipo"></div>
+                    <div class="form-group"><label for="edit_vidros_quantidade">Quantidade:</label><input type="number" id="edit_vidros_quantidade" name="vidros_quantidade" min="0"></div>
+                    <div class="form-group"><label for="edit_vidros_observacao">Observação Vidros:</label><textarea id="edit_vidros_observacao" name="vidros_observacao"></textarea></div>
+                    
+                    <div class="form-group">
+                        <label>A unidade possui vidro alto?</label>
+                        <input type="radio" id="edit_possui_vidro_alto_sim" name="possui_vidro_alto" value="True"> <label for="edit_possui_vidro_alto_sim" class="radio-label-inline">Sim</label>
+                        <input type="radio" id="edit_possui_vidro_alto_nao" name="possui_vidro_alto" value="False"> <label for="edit_possui_vidro_alto_nao" class="radio-label-inline">Não</label>
+                    </div>
+                    <div id="edit_vidro_alto_perigo_campo" style="display: none;">
+                        <div class="form-group">
+                            <label>O vidro alto representa perigo?</label>
+                            <input type="radio" id="edit_vidro_alto_perigoso_sim" name="vidro_alto_perigoso" value="True"> <label for="edit_vidro_alto_perigoso_sim" class="radio-label-inline">Sim</label>
+                            <input type="radio" id="edit_vidro_alto_perigoso_nao" name="vidro_alto_perigoso" value="False"> <label for="edit_vidro_alto_perigoso_nao" class="radio-label-inline">Não</label>
+                        </div>
+                    </div>
+                </div>
+                
+                <h3>Medidas Dinâmicas (Adicionar Linha):</h3>
+                <div class="medidas-dinamicas">
+                    <div class="inline-fields">
+                        <div>
+                            <label for="edit_medida_tipo">Tipo de Medida:</label>
+                            <select id="edit_medida_tipo" name="medida_tipo_dynamic"> {# Nome diferente para não conflitar com form principal #}
+                                {# Opções serão populadas via JavaScript #}
+                            </select>
+                        </div>
+                        <div><label for="edit_medida_comprimento">Comprimento (m):</label><input type="text" id="edit_medida_comprimento" placeholder="C"></div>
+                        <div><label for="edit_medida_largura">Largura (m):</label><input type="text" id="edit_medida_largura" placeholder="L"></div>
+                    </div>
+                    <div class="btn-group">
+                        <button type="button" id="edit_adicionarMedidaBtn" class="btn btn-secondary">Adicionar</button>
+                        <button type="button" id="edit_removerMedidaBtn" class="btn btn-warning">Remover Sel.</button>
+                        <button type="button" id="edit_repetirMedidaBtn" class="btn btn-info">Repetir Sel.</button>
+                    </div>
+                    <h4>Medidas Adicionadas:</h4>
+                    <ul id="edit_medidasList" class="medidas-list"></ul>
+                    <input type="hidden" id="edit_medidas_dinamicas_json" name="medidas_dinamicas_json">
+                </div>
+
+                <div class="form-group">
+                    <label for="edit_tipos_parede">Tipo(s) de Parede:</label>
+                    <select id="edit_tipos_parede" name="tipos_parede" multiple required class="select2-multiple-modal">
+                         {# Opções serão populadas via JavaScript #}
+                    </select>
+                    <small>Segure Ctrl (ou Cmd em Mac) para selecionar múltiplos.</small>
+                </div>
+
+                <div class="form-group">
+                    <label for="edit_observacoes_gerais">Observações Gerais:</label>
+                    <textarea id="edit_observacoes_gerais" name="observacoes_gerais" rows="4"></textarea>
+                </div>
+                
+                <div class="btn-group">
+                    <button type="submit" class="btn btn-primary">Salvar Alterações</button>
+                    <button type="button" class="btn btn-secondary modal-close-trigger">Cancelar</button> </div>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        // Variáveis globais com os tipos passados do Python
+        const tiposPisoGlobais = {{ tipos_piso_json | safe }};
+        const tiposParedeGlobais = {{ tipos_parede_json | safe }};
+        const tiposMedidaGlobais = {{ tipos_medida_json | safe }};
+
+        function showFlashMessage(message, category) {
+            // Tenta encontrar o container de flashes. Se não existir, cria um.
+            let flashesContainer = document.querySelector('.container > .flashes');
+            if (!flashesContainer) {
+                flashesContainer = document.createElement('ul');
+                flashesContainer.classList.add('flashes');
+                const header = document.querySelector('.app-header'); // Inserir após o header
+                if (header) {
+                    header.parentNode.insertBefore(flashesContainer, header.nextSibling);
+                } else { // Fallback: inserir no início do container
+                    document.querySelector('.container').prepend(flashesContainer);
+                }
+            }
+            
+            const li = document.createElement('li');
+            li.classList.add(category);
+            li.textContent = message;
+            flashesContainer.appendChild(li);
+            
+            setTimeout(() => {
+                li.remove();
+                if (flashesContainer.children.length === 0 && !flashesContainer.classList.contains('flashes-persistente')) { // Evita remover se for o container original com mensagens do servidor
+                    // Não remove o container se ele já existia, apenas se foi criado dinamicamente e está vazio
+                }
+            }, 5000);
+        }
+
+
+        $(document).ready(function() {
+            const currentLocalidadeNome = "{{ localidade.nome }}";
+            // Carrega os dados das unidades. `from_json` é usado no template, aqui `tojson` é seguro.
+            const unitsData = {{ localidade.unidades | tojson | safe }}; 
+            
+            const editModal = document.getElementById('editUnitModal');
+            // const closeButton = editModal.querySelector('.close-button'); // Usaremos a classe .modal-close-trigger
+            const editForm = document.getElementById('editForm');
+
+            let currentEditMedidasData = []; 
+            const editMedidasList = document.getElementById('edit_medidasList');
+            const editMedidasJsonInput = document.getElementById('edit_medidas_dinamicas_json');
+            let editSelectedMedidaIndex = -1;
+
+            // Inicializar Select2 para campos multiple dentro do modal
+            // É preciso inicializar APÓS popular as options, ou quando o modal for aberto
+            function initializeModalSelect2() {
+                $('#edit_tipos_piso.select2-multiple-modal, #edit_tipos_parede.select2-multiple-modal').select2({
+                    placeholder: "Selecione uma ou mais opções",
+                    allowClear: true,
+                    dropdownParent: $('#editUnitModal') // Importante para modais
+                });
+            }
+            
+            // Popular selects do modal
+            function populateSelect(selectElementId, optionsArray, selectedValues = []) {
+                const selectElement = $(`#${selectElementId}`);
+                selectElement.empty(); // Limpa opções antigas
+                optionsArray.forEach(opt => {
+                    const option = new Option(opt, opt, false, selectedValues.includes(opt));
+                    selectElement.append(option);
+                });
+                selectElement.trigger('change'); // Necessário para Select2 atualizar
+            }
+
+
+            // Lógica para mostrar/esconder campos de vidros GERAIS no MODAL
+            const editTemVidrosSim = document.getElementById('edit_tem_vidros_sim');
+            const editTemVidrosNao = document.getElementById('edit_tem_vidros_nao');
+            const editVidrosCamposGerais = document.getElementById('edit_vidros_campos_gerais');
+            
+            // Lógica para vidro ALTO e PERIGO no MODAL
+            const editPossuiVidroAltoSim = document.getElementById('edit_possui_vidro_alto_sim');
+            const editPossuiVidroAltoNao = document.getElementById('edit_possui_vidro_alto_nao');
+            const editVidroAltoPerigoCampo = document.getElementById('edit_vidro_alto_perigo_campo');
+
+            function toggleEditVidrosCamposGerais() {
+                const display = editTemVidrosSim.checked ? 'block' : 'none';
+                editVidrosCamposGerais.style.display = display;
+                if (!editTemVidrosSim.checked) {
+                    editPossuiVidroAltoNao.checked = true;
+                    toggleEditVidroAltoPerigoCampo();
+                }
+            }
+
+            function toggleEditVidroAltoPerigoCampo() {
+                if (editTemVidrosSim.checked && editPossuiVidroAltoSim.checked) {
+                    editVidroAltoPerigoCampo.style.display = 'block';
+                } else {
+                    editVidroAltoPerigoCampo.style.display = 'none';
+                    document.getElementById('edit_vidro_alto_perigoso_nao').checked = true;
+                }
+            }
+
+            editTemVidrosSim.addEventListener('change', toggleEditVidrosCamposGerais);
+            editTemVidrosNao.addEventListener('change', toggleEditVidrosCamposGerais);
+            editPossuiVidroAltoSim.addEventListener('change', toggleEditVidroAltoPerigoCampo);
+            editPossuiVidroAltoNao.addEventListener('change', toggleEditVidroAltoPerigoCampo);
+
+
+            function updateEditMeasuresListAndHiddenFields() {
+                editMedidasList.innerHTML = '';
+                currentEditMedidasData.forEach((medida, index) => {
+                    const li = document.createElement('li');
+                    li.setAttribute('data-index', index);
+                    li.innerHTML = `
+                        <span>${medida[0]}: ${medida[1]}m x ${medida[2]}m = ${medida[3].toFixed(2)} m²</span>
+                        <button type="button" class="remove-medida-item-btn" data-index="${index}">X</button>
+                    `;
+                    if (index === editSelectedMedidaIndex) li.classList.add('selected');
+                    editMedidasList.appendChild(li);
+                });
+                editMedidasJsonInput.value = JSON.stringify(currentEditMedidasData);
+            }
+
+            $('.edit-btn').on('click', function() {
+                const unitId = $(this).data('unit-id').toString(); // Garantir que é string para comparação
+                const unit = unitsData.find(u => u.id === unitId);
+
+                if (unit) {
+                    $('#edit_unit_id').val(unit.id);
+                    $('#edit_nome').val(unit.nome);
+                    $('#edit_data').val(unit.data);
+                    $('#edit_responsavel').val(unit.responsavel);
+
+                    // Ponto 1 Edição: Popular e selecionar Tipos de Piso
+                    populateSelect('edit_tipos_piso', tiposPisoGlobais, unit.tipos_piso || []);
+                    
+                    $('#edit_area_interna_comprimento').val(unit.area_interna_comprimento);
+                    $('#edit_area_interna_largura').val(unit.area_interna_largura);
+                    $('#edit_area_externa_comprimento').val(unit.area_externa_comprimento);
+                    $('#edit_area_externa_largura').val(unit.area_externa_largura);
+                    $('#edit_vestiario_comprimento').val(unit.vestiario_comprimento);
+                    $('#edit_vestiario_largura').val(unit.vestiario_largura);
+
+                    // Vidros
+                    if (unit.tem_vidros) editTemVidrosSim.checked = true; else editTemVidrosNao.checked = true;
+                    $('#edit_vidros_tipo').val(unit.vidros_tipo);
+                    $('#edit_vidros_quantidade').val(unit.vidros_quantidade);
+                    $('#edit_vidros_observacao').val(unit.vidros_observacao);
+                    toggleEditVidrosCamposGerais(); // Atualiza visibilidade
+
+                    // Ponto 2 Edição: Vidro Alto e Perigo
+                    if (unit.possui_vidro_alto) editPossuiVidroAltoSim.checked = true; else editPossuiVidroAltoNao.checked = true;
+                    if (unit.vidro_alto_perigoso) document.getElementById('edit_vidro_alto_perigoso_sim').checked = true; else document.getElementById('edit_vidro_alto_perigoso_nao').checked = true;
+                    toggleEditVidroAltoPerigoCampo(); // Atualiza visibilidade
+
+                    // Ponto 3 Edição: Popular e selecionar Tipos de Parede
+                    populateSelect('edit_tipos_parede', tiposParedeGlobais, unit.tipos_parede || []);
+                    
+                    $('#edit_observacoes_gerais').val(unit.observacoes_gerais);
+                    
+                    // Popular select de tipo de medida dinâmica
+                    populateSelect('edit_medida_tipo', tiposMedidaGlobais);
+
+
+                    try { // Medidas dinâmicas: 'medidas' é string JSON
+                        currentEditMedidasData = JSON.parse(unit.medidas || '[]');
+                    } catch (e) { currentEditMedidasData = []; }
+                    editSelectedMedidaIndex = -1;
+                    updateEditMeasuresListAndHiddenFields();
+                    
+                    initializeModalSelect2(); // Inicializa/Reinicializa Select2 após popular
+                    editModal.style.display = 'block'; // 'block' ou 'flex' dependendo do seu CSS
+                }
+            });
+
+            $('.modal-close-trigger').on('click', function() { // Fecha o modal
+                editModal.style.display = 'none';
+            });
+            window.onclick = function(event) {
+                if (event.target == editModal) {
+                    editModal.style.display = 'none';
+                }
+            }
+
+            // Medidas dinâmicas no modal
+            editMedidasList.addEventListener('click', (event) => {
+                let targetLi = event.target.tagName === 'LI' ? event.target : event.target.closest('li');
+                if (targetLi) {
+                    const index = parseInt(targetLi.dataset.index);
+                    if (editSelectedMedidaIndex === index) {
+                        editSelectedMedidaIndex = -1; targetLi.classList.remove('selected');
+                    } else {
+                        editMedidasList.querySelectorAll('li').forEach(li => li.classList.remove('selected'));
+                        targetLi.classList.add('selected'); editSelectedMedidaIndex = index;
+                    }
+                }
+                if (event.target.classList.contains('remove-medida-item-btn')) {
+                    const indexToRemove = parseInt(event.target.dataset.index);
+                    currentEditMedidasData.splice(indexToRemove, 1);
+                    if (editSelectedMedidaIndex === indexToRemove) editSelectedMedidaIndex = -1;
+                    else if (editSelectedMedidaIndex > indexToRemove) editSelectedMedidaIndex--;
+                    updateEditMeasuresListAndHiddenFields();
+                }
+            });
+
+            document.getElementById('edit_adicionarMedidaBtn').addEventListener('click', () => {
+                const tipo = document.getElementById('edit_medida_tipo').value; // Ponto 4 Edição
+                let comp = parseFloat(document.getElementById('edit_medida_comprimento').value.replace(',', '.'));
+                let larg = parseFloat(document.getElementById('edit_medida_largura').value.replace(',', '.'));
+                if (!tipo || isNaN(comp) || isNaN(larg) || comp <= 0 || larg <= 0) {
+                    alert('Preencha tipo, comprimento e largura válidos.'); return;
+                }
+                currentEditMedidasData.push([tipo, comp, larg, comp * larg]);
+                updateEditMeasuresListAndHiddenFields();
+                document.getElementById('edit_medida_comprimento').value = ''; // Ponto 4 Edição
+                document.getElementById('edit_medida_largura').value = '';   // Ponto 4 Edição
+                document.getElementById('edit_medida_comprimento').focus();
+            });
+            
+            document.getElementById('edit_removerMedidaBtn').addEventListener('click', () => {
+                if (editSelectedMedidaIndex !== -1) {
+                    currentEditMedidasData.splice(editSelectedMedidaIndex, 1);
+                    editSelectedMedidaIndex = -1; 
+                    updateEditMeasuresListAndHiddenFields();
+                } else alert("Selecione uma medida para remover.");
+            });
+
+            document.getElementById('edit_repetirMedidaBtn').addEventListener('click', () => {
+                if (editSelectedMedidaIndex !== -1) {
+                    const medidaRepetir = currentEditMedidasData[editSelectedMedidaIndex];
+                    const count = prompt("Quantas vezes repetir?");
+                    if (count && !isNaN(parseInt(count)) && parseInt(count) > 0) {
+                        for (let i = 0; i < parseInt(count); i++) currentEditMedidasData.push([...medidaRepetir]);
+                        updateEditMeasuresListAndHiddenFields();
+                    } else if (count) alert("Número inválido.");
+                } else alert("Selecione uma medida para repetir.");
+            });
+
+            $('#editForm').on('submit', function(e) {
+                e.preventDefault();
+                const unitId = $('#edit_unit_id').val();
+                // FormData pega os valores dos selects multiple corretamente
+                const formData = new FormData(this);
+                // O 'medidas_dinamicas_json' já está no form (hidden input), então é pego pelo FormData.
+
+                $.ajax({
+                    url: `/salvar_unidade/${currentLocalidadeNome}/${unitId}`,
+                    type: 'POST', data: formData, processData: false, contentType: false,
+                    success: function(response) {
+                        showFlashMessage(response.message, response.status === 'success' ? 'success' : 'danger');
+                        if (response.status === 'success') {
+                            editModal.style.display = 'none';
+                            location.reload(); 
+                        }
+                    },
+                    error: function(xhr) {
+                        showFlashMessage('Erro ao salvar. Verifique o console.', 'danger');
+                        console.error("Erro AJAX:", xhr.responseText);
+                    }
+                });
+            });
+
+            $('.delete-btn').on('click', function() {
+                const unitId = $(this).data('unit-id').toString();
+                if (confirm('Tem certeza que deseja excluir esta unidade?')) {
+                    $.ajax({
+                        url: `/excluir_unidade/${currentLocalidadeNome}/${unitId}`,
+                        type: 'POST',
+                        success: function(response) {
+                            showFlashMessage(response.message, response.status === 'success' ? 'success' : 'danger');
+                            if (response.status === 'success') $(`#unit-card-${unitId}`).remove();
+                            if ($('.unit-card').length === 0) {
+                                // Adiciona mensagem se não houver mais unidades
+                                const noUnitsMsg = `<div class="no-units"><p>Nenhuma unidade cadastrada.</p></div>`;
+                                if ($('.no-units').length === 0) { // Evita duplicar a mensagem
+                                     $('header.app-header').after(noUnitsMsg); // Insere após o header
+                                }
+                            }
+                        },
+                        error: function(xhr) {
+                            showFlashMessage('Erro ao excluir. Tente novamente.', 'danger');
+                            console.error("Erro AJAX:", xhr.responseText);
+                        }
+                    });
+                }
+            });
+        });
+    </script>
+</body>
+</html>
