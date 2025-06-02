@@ -65,6 +65,9 @@
 
         <ul id="listaMedidas"></ul>
 
+        <label for="quantidadeRepeticao">Quantidade de repetições:</label>
+        <input type="number" id="quantidadeRepeticao" value="1" min="1">
+
         <button type="button" onclick="repetirMedidaSelecionada()">Repetir Medida Selecionada</button>
 
         <input type="hidden" name="medidas_json" id="medidas_json" value="[]">
@@ -128,12 +131,19 @@
     }
 
     function repetirMedidaSelecionada() {
+        const quantidade = parseInt(document.getElementById('quantidadeRepeticao').value);
         if (medidaSelecionada === null) {
             alert("Selecione uma medida para repetir.");
             return;
         }
+        if (isNaN(quantidade) || quantidade < 1) {
+            alert("Informe uma quantidade válida.");
+            return;
+        }
         const medida = medidas[medidaSelecionada];
-        medidas.push({...medida});
+        for (let i = 0; i < quantidade; i++) {
+            medidas.push({...medida});
+        }
         atualizarLista();
         document.getElementById('medidas_json').value = JSON.stringify(medidas);
     }
