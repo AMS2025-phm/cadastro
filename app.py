@@ -1,3 +1,8 @@
+from flask import Flask, render_template, request, redirect, url_for, flash, g
+
+app = Flask(__name__)
+app.secret_key = 'super-secret'  # Altere para algo mais seguro
+
 @app.route('/adicionar_unidade', methods=['POST'])
 @login_required
 def adicionar_unidade():
