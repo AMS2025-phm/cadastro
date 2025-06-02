@@ -9,8 +9,7 @@
         h1, h2 { text-align: center; }
         label { display: block; margin-top: 10px; }
         input, select { width: 100%; padding: 8px; margin-top: 5px; }
-        .checkbox-group { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 5px; }
-        .checkbox-group label { display: flex; align-items: center; }
+        .checkbox-group, .radio-group { display: flex; flex-direction: column; margin-top: 5px; }
         button { margin-top: 15px; padding: 10px; width: 100%; background: #007bff; color: #fff; border: none; border-radius: 4px; cursor: pointer; }
         button:hover { background: #0056b3; }
     </style>
@@ -47,8 +46,10 @@
         </div>
 
         <label>Vidros Altos:</label>
-        <label><input type="radio" name="vidros_altos" value="Sim"> Sim</label>
-        <label><input type="radio" name="vidros_altos" value="Não" checked> Não</label>
+        <div class="radio-group">
+            <label><input type="radio" name="vidros_altos" value="Sim" checked> Sim</label>
+            <label><input type="radio" name="vidros_altos" value="Não"> Não</label>
+        </div>
 
         <label>Paredes:</label>
         <div class="checkbox-group">
@@ -73,11 +74,11 @@
         <input type="number" id="largura" step="0.01">
 
         <label>Tipo de Medida:</label>
-        <div class="checkbox-group">
-            <label><input type="checkbox" class="tipo-medida" value="Vidro"> Vidro</label>
-            <label><input type="checkbox" class="tipo-medida" value="Sanitário-Vestiário"> Sanitário-Vestiário</label>
-            <label><input type="checkbox" class="tipo-medida" value="Área Interna"> Área Interna</label>
-            <label><input type="checkbox" class="tipo-medida" value="Área Externa"> Área Externa</label>
+        <div class="radio-group">
+            <label><input type="radio" name="tipo_medida" value="Vidro" checked> Vidro</label>
+            <label><input type="radio" name="tipo_medida" value="Sanitário-Vestiário"> Sanitário-Vestiário</label>
+            <label><input type="radio" name="tipo_medida" value="Área Interna"> Área Interna</label>
+            <label><input type="radio" name="tipo_medida" value="Área Externa"> Área Externa</label>
         </div>
 
         <button type="button" onclick="adicionarMedida()">Adicionar Medida</button>
@@ -103,29 +104,24 @@
     function adicionarMedida() {
         const comp = parseFloat(document.getElementById('comprimento').value);
         const larg = parseFloat(document.getElementById('largura').value);
+        const tipo = document.querySelector('input[name="tipo_medida"]:checked').value;
+
         if (isNaN(comp) || isNaN(larg) || comp <= 0 || larg <= 0) {
             alert("Comprimento e Largura devem ser números positivos.");
             return;
         }
 
-        const tipos = Array.from(document.querySelectorAll('.tipo-medida:checked')).map(cb => cb.value);
-        if (tipos.length === 0) {
-            alert("Selecione ao menos um tipo de medida.");
-            return;
-        }
-
         const area = (comp * larg).toFixed(2);
-        tipos.forEach(tipo => {
-            medidas.push([tipo, comp, larg, parseFloat(area)]);
-            const li = document.createElement('li');
-            li.textContent = \`\${tipo}: \${comp}m x \${larg}m = \${area} m²\`;
-            document.getElementById('listaMedidas').appendChild(li);
-        });
+        medidas.push([tipo, comp, larg, parseFloat(area)]);
+
+        const li = document.createElement('li');
+        li.textContent = \`\${tipo}: \${comp}m x \${larg}m = \${area} m²\`;
+        document.getElementById('listaMedidas').appendChild(li);
 
         document.getElementById('medidas_json').value = JSON.stringify(medidas);
+        
         document.getElementById('comprimento').value = '';
         document.getElementById('largura').value = '';
-        document.querySelectorAll('.tipo-medida').forEach(cb => cb.checked = false);
     }
 </script>
 </body>
