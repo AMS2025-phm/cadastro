@@ -37,15 +37,6 @@ def salvar_unidade():
     responsavel = request.form.get('responsavel', '')
     qtd_func = request.form.get('qtd_func', '')
 
-    pisos = [k.split('_',1)[1] for k in request.form.keys() if k.startswith('piso_')]
-    vidros_altos = request.form.get('vidros_altos', 'Não')
-    paredes = [k.split('_',1)[1] for k in request.form.keys() if k.startswith('parede_')]
-
-    estacionamento = 'estacionamento' in request.form
-    gramado = 'gramado' in request.form
-    curativo = 'curativo' in request.form
-    vacina = 'vacina' in request.form
-
     medidas_json_str = request.form.get('medidas_json', '[]')
     try:
         medidas = json.loads(medidas_json_str)
@@ -59,13 +50,6 @@ def salvar_unidade():
         'data': data,
         'responsavel': responsavel,
         'qtd_func': qtd_func,
-        'piso': pisos,
-        'vidros_altos': vidros_altos,
-        'paredes': paredes,
-        'estacionamento': estacionamento,
-        'gramado': gramado,
-        'curativo': curativo,
-        'vacina': vacina,
         'medidas': medidas
     }
     salvar_dados(localidades)

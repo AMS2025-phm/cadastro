@@ -9,7 +9,9 @@
         h1, h2 { text-align: center; }
         label { display: block; margin-top: 10px; }
         input, select { width: 100%; padding: 8px; margin-top: 5px; }
-        .checkbox-group, .radio-group { display: flex; flex-direction: column; margin-top: 5px; }
+        .radio-group, .checkbox-group { display: flex; flex-direction: column; margin-top: 5px; }
+        .radio-inline, .checkbox-inline { display: flex; align-items: center; margin-top: 5px; }
+        .radio-inline input, .checkbox-inline input { margin-right: 5px; }
         button { margin-top: 15px; padding: 10px; width: 100%; background: #007bff; color: #fff; border: none; border-radius: 4px; cursor: pointer; }
         button:hover { background: #0056b3; }
     </style>
@@ -33,39 +35,6 @@
         <label for="qtd_func">Quantidade de Funcionários:</label>
         <input type="number" name="qtd_func" min="0">
 
-        <label>Tipos de Piso:</label>
-        <div class="checkbox-group">
-            <label><input type="checkbox" name="piso_Paviflex"> Paviflex</label>
-            <label><input type="checkbox" name="piso_Cerâmica"> Cerâmica</label>
-            <label><input type="checkbox" name="piso_Porcelanato"> Porcelanato</label>
-            <label><input type="checkbox" name="piso_Granilite"> Granilite</label>
-            <label><input type="checkbox" name="piso_Cimento Queimado"> Cimento Queimado</label>
-            <label><input type="checkbox" name="piso_Epoxi"> Epóxi</label>
-            <label><input type="checkbox" name="piso_Ardósia"> Ardósia</label>
-            <label><input type="checkbox" name="piso_Outros"> Outros</label>
-        </div>
-
-        <label>Vidros Altos:</label>
-        <div class="radio-group">
-            <label><input type="radio" name="vidros_altos" value="Sim" checked> Sim</label>
-            <label><input type="radio" name="vidros_altos" value="Não"> Não</label>
-        </div>
-
-        <label>Paredes:</label>
-        <div class="checkbox-group">
-            <label><input type="checkbox" name="parede_Alvenaria"> Alvenaria</label>
-            <label><input type="checkbox" name="parede_Estuque"> Estuque</label>
-            <label><input type="checkbox" name="parede_Divisórias"> Divisórias</label>
-        </div>
-
-        <label>Outras Informações:</label>
-        <div class="checkbox-group">
-            <label><input type="checkbox" name="estacionamento"> Estacionamento</label>
-            <label><input type="checkbox" name="gramado"> Gramado</label>
-            <label><input type="checkbox" name="curativo"> Sala de Curativo</label>
-            <label><input type="checkbox" name="vacina"> Sala de Vacina</label>
-        </div>
-
         <h2>Medidas</h2>
         <label for="comprimento">Comprimento (m):</label>
         <input type="number" id="comprimento" step="0.01">
@@ -75,13 +44,14 @@
 
         <label>Tipo de Medida:</label>
         <div class="radio-group">
-            <label><input type="radio" name="tipo_medida" value="Vidro" checked> Vidro</label>
-            <label><input type="radio" name="tipo_medida" value="Sanitário-Vestiário"> Sanitário-Vestiário</label>
-            <label><input type="radio" name="tipo_medida" value="Área Interna"> Área Interna</label>
-            <label><input type="radio" name="tipo_medida" value="Área Externa"> Área Externa</label>
+            <label class="radio-inline"><input type="radio" name="tipo_medida" value="Vidro" checked> Vidro</label>
+            <label class="radio-inline"><input type="radio" name="tipo_medida" value="Sanitário-Vestiário"> Sanitário-Vestiário</label>
+            <label class="radio-inline"><input type="radio" name="tipo_medida" value="Área Interna"> Área Interna</label>
+            <label class="radio-inline"><input type="radio" name="tipo_medida" value="Área Externa"> Área Externa</label>
         </div>
 
         <button type="button" onclick="adicionarMedida()">Adicionar Medida</button>
+        <button type="button" onclick="repetirUltimaMedida()">Repetir Última Medida</button>
 
         <ul id="listaMedidas"></ul>
 
@@ -100,6 +70,7 @@
 
 <script>
     const medidas = [];
+    let ultimaMedida = null;
 
     function adicionarMedida() {
         const comp = parseFloat(document.getElementById('comprimento').value);
@@ -112,16 +83,30 @@
         }
 
         const area = (comp * larg).toFixed(2);
-        medidas.push([tipo, comp, larg, parseFloat(area)]);
+        const medida = {tipo: tipo, comprimento: comp, largura: larg, area: parseFloat(area)};
+        medidas.push(medida);
+        ultimaMedida = medida;
 
         const li = document.createElement('li');
-        li.textContent = \`\${tipo}: \${comp}m x \${larg}m = \${area} m²\`;
+        li.textContent = `${tipo}: ${comp}m x ${larg}m = ${area} m²`;
         document.getElementById('listaMedidas').appendChild(li);
 
         document.getElementById('medidas_json').value = JSON.stringify(medidas);
-        
+
         document.getElementById('comprimento').value = '';
         document.getElementById('largura').value = '';
+    }
+
+    function repetirUltimaMedida() {
+        if (!ultimaMedida) {
+            alert("Nenhuma medida para repetir.");
+            return;
+        }
+        medidas.push({...ultimaMedida});
+        const li = document.createElement('li');
+        li.textContent = `${ultimaMedida.tipo}: ${ultimaMedida.comprimento}m x ${ultimaMedida.largura}m = ${ultimaMedida.area} m² (Repetida)`;
+        document.getElementById('listaMedidas').appendChild(li);
+        document.getElementById('medidas_json').value = JSON.stringify(medidas);
     }
 </script>
 </body>
