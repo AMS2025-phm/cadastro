@@ -1,0 +1,324 @@
+/* Geral */
+body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background-color: #eef1f6;
+    margin: 0;
+    padding: 20px;
+    display: flex;
+    justify-content: center;
+    align-items: flex-start; /* Alinha no topo */
+    min-height: 100vh;
+    color: #333;
+}
+
+.container {
+    background-color: #fff;
+    padding: 30px;
+    border-radius: 10px;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+    width: 100%;
+    max-width: 900px; /* Aumenta a largura para o layout completo */
+    margin-bottom: 30px; /* Espaço na parte inferior */
+}
+
+h1, h2, h3 {
+    color: #2c3e50;
+    text-align: center;
+    margin-bottom: 25px;
+    font-weight: 600;
+}
+
+/* Header da aplicação */
+.app-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 30px;
+    border-bottom: 1px solid #eee;
+    padding-bottom: 15px;
+}
+
+.app-header h1 {
+    margin: 0;
+    font-size: 2.2em;
+    text-align: left; /* Alinha título à esquerda no header */
+}
+
+.app-header nav .btn {
+    margin-left: 10px;
+}
+
+/* Mensagens Flash */
+.flashes {
+    list-style: none;
+    padding: 15px;
+    margin-bottom: 25px;
+    border-radius: 8px;
+    font-weight: bold;
+    text-align: center;
+}
+
+.flashes li {
+    margin: 5px 0;
+}
+
+.flashes li.success {
+    background-color: #d4edda;
+    color: #155724;
+    border: 1px solid #c3e6cb;
+}
+
+.flashes li.danger {
+    background-color: #f8d7da;
+    color: #721c24;
+    border: 1px solid #f5c6cb;
+}
+
+.flashes li.warning {
+    background-color: #fff3cd;
+    color: #856404;
+    border: 1px solid #ffeeba;
+}
+
+.flashes li.info {
+    background-color: #d1ecf1;
+    color: #0c5460;
+    border: 1px solid #bee5eb;
+}
+
+/* Estilos de Formulário */
+.form-group {
+    margin-bottom: 20px;
+}
+
+.form-group label {
+    display: block;
+    margin-bottom: 8px;
+    font-weight: bold;
+    color: #555;
+}
+
+.form-group input[type="text"],
+.form-group input[type="date"],
+.form-group input[type="number"],
+.form-group input[type="email"],
+.form-group select {
+    width: 100%; /* Ajusta largura para 100% */
+    padding: 12px;
+    border: 1px solid #ccc;
+    border-radius: 6px;
+    box-sizing: border-box;
+    font-size: 1em;
+}
+
+/* Checkboxes e Radios */
+.checkbox-group, .radio-group {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 15px; /* Espaçamento entre os itens */
+}
+
+.vertical-checkbox-group {
+    flex-direction: column;
+}
+
+.checkbox-group div, .radio-group div {
+    display: flex;
+    align-items: center;
+}
+
+.checkbox-group input[type="checkbox"],
+.radio-group input[type="radio"] {
+    margin-right: 8px;
+    transform: scale(1.2); /* Aumenta o tamanho visual */
+}
+
+.checkbox-group label, .radio-group label {
+    margin-bottom: 0;
+    font-weight: normal;
+    cursor: pointer;
+}
+
+/* Botões */
+.btn {
+    background-color: #007bff;
+    color: white;
+    padding: 12px 25px;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 1.1em;
+    text-decoration: none;
+    display: inline-block;
+    transition: background-color 0.3s ease, transform 0.2s ease;
+}
+
+.btn:hover {
+    background-color: #0056b3;
+    transform: translateY(-2px);
+}
+
+.btn-primary {
+    background-color: #28a745; /* Verde para salvar */
+}
+
+.btn-primary:hover {
+    background-color: #218838;
+}
+
+.btn-danger {
+    background-color: #dc3545; /* Vermelho para excluir */
+}
+
+.btn-danger:hover {
+    background-color: #c82333;
+}
+
+.btn-success {
+    background-color: #17a2b8; /* Azul claro para exportar/enviar */
+}
+
+.btn-success:hover {
+    background-color: #138496;
+}
+
+.btn-small {
+    padding: 5px 10px;
+    font-size: 0.8em;
+    border-radius: 4px;
+}
+
+
+.button-group {
+    display: flex;
+    gap: 15px;
+    margin-top: 25px;
+    flex-wrap: wrap;
+    justify-content: center; /* Centraliza os botões do grupo */
+}
+
+.main-actions {
+    margin-top: 40px;
+    border-top: 1px solid #eee;
+    padding-top: 25px;
+}
+
+/* Lista de medidas */
+.medida-list {
+    list-style: none;
+    padding: 0;
+    margin-top: 20px;
+    border: 1px solid #e0e0e0;
+    border-radius: 8px;
+    max-height: 250px;
+    overflow-y: auto;
+    background-color: #fcfcfc;
+}
+
+.medida-list li {
+    padding: 12px 15px;
+    border-bottom: 1px solid #eee;
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+}
+
+.medida-list li:last-child {
+    border-bottom: none;
+}
+
+.medida-list li:hover {
+    background-color: #f0f0f0;
+}
+
+.medida-list li.selected {
+    background-color: #d1e7dd; /* Light green for selected */
+    font-weight: bold;
+    color: #155724;
+}
+
+/* Linha divisória */
+hr {
+    border: 0;
+    height: 1px;
+    background: #e0e0e0;
+    margin: 40px 0;
+}
+
+/* Estilos para layout de seções (localidades e exportação) */
+.section-container {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 30px; /* Espaçamento entre as seções */
+    margin-top: 30px;
+}
+
+.section-left, .section-right {
+    flex: 1; /* Permite que as seções ocupem o espaço disponível */
+    min-width: 300px; /* Largura mínima para evitar quebras estranhas */
+}
+
+.localidade-list {
+    list-style: none;
+    padding: 0;
+}
+
+.localidade-list li {
+    background-color: #f8f8f8;
+    border: 1px solid #e0e0e0;
+    border-radius: 6px;
+    padding: 10px 15px;
+    margin-bottom: 10px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.localidade-list li a {
+    text-decoration: none;
+    color: #007bff;
+    font-weight: bold;
+}
+
+.localidade-list li a:hover {
+    text-decoration: underline;
+}
+
+/* Estilo para input group inline (Comprimento/Largura) */
+.inline-group {
+    display: flex;
+    gap: 20px;
+    align-items: flex-end; /* Alinha os campos de entrada */
+}
+
+.inline-group > div {
+    flex: 1;
+}
+
+/* Responsividade básica */
+@media (max-width: 768px) {
+    .app-header {
+        flex-direction: column;
+        text-align: center;
+    }
+    .app-header nav {
+        margin-top: 15px;
+    }
+    .app-header h1 {
+        text-align: center;
+        font-size: 1.8em;
+    }
+    .section-container {
+        flex-direction: column;
+    }
+    .button-group {
+        flex-direction: column;
+    }
+    .btn {
+        width: 100%;
+        margin-bottom: 10px;
+    }
+    .inline-group {
+        flex-direction: column;
+        gap: 10px;
+    }
+}
