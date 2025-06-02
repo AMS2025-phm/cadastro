@@ -1,0 +1,41 @@
+
+<form action="{{ url_for('adicionar_unidade') }}" method="POST">
+    <label for="localidade_nome">Localidade:</label>
+    <input type="text" name="localidade_nome" required>
+    
+    <label for="unidade_nome">Nome da Unidade:</label>
+    <input type="text" name="unidade_nome" required>
+    
+    <label for="data">Data:</label>
+    <input type="date" name="data" required>
+    
+    <label for="responsavel">Responsável:</label>
+    <input type="text" name="responsavel" required>
+    
+    <label for="tipo_piso">Tipo(s) de Piso:</label>
+    <input type="text" name="tipo_piso">
+    
+    <label for="tipo_parede">Tipo(s) de Parede:</label>
+    <input type="text" name="tipo_parede">
+    
+    <label>Possui Estacionamento?</label>
+    <input type="radio" name="possui_estacionamento" value="sim"> Sim
+    <input type="radio" name="possui_estacionamento" value="nao" checked> Não
+
+    <label>Estacionamento Coberto?</label>
+    <input type="radio" name="estacionamento_coberto" value="sim"> Sim
+    <input type="radio" name="estacionamento_coberto" value="nao" checked> Não
+
+    <label>Possui Sala de Vacinação?</label>
+    <input type="radio" name="possui_sala_vacinacao" value="sim"> Sim
+    <input type="radio" name="possui_sala_vacinacao" value="nao" checked> Não
+
+    <label>Possui Sala de Curativo?</label>
+    <input type="radio" name="possui_sala_curativo" value="sim"> Sim
+    <input type="radio" name="possui_sala_curativo" value="nao" checked> Não
+
+    <label for="observacoes_gerais">Observações Gerais:</label>
+    <textarea name="observacoes_gerais"></textarea>
+    
+    <button type="submit">Salvar</button>
+</form>
