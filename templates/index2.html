@@ -1,0 +1,66 @@
+<h3>Outras Características da Unidade:</h3>
+                    <div class="form-group">
+                        <label>Possui Estacionamento?</label>
+                        <input type="radio" id="estacionamento_sim" name="possui_estacionamento" value="sim"> <label for="estacionamento_sim" class="radio-label-inline">Sim</label>
+                        <input type="radio" id="estacionamento_nao" name="possui_estacionamento" value="nao" checked> <label for="estacionamento_nao" class="radio-label-inline">Não</label>
+                    </div>
+                    <div id="estacionamento_coberto_campo" class="form-group" style="display: none; margin-left: 20px;">
+                        <label>Estacionamento é Coberto?</label>
+                        <input type="radio" id="estacionamento_coberto_sim" name="estacionamento_coberto" value="sim"> <label for="estacionamento_coberto_sim" class="radio-label-inline">Sim</label>
+                        <input type="radio" id="estacionamento_coberto_nao" name="estacionamento_coberto" value="nao" checked> <label for="estacionamento_coberto_nao" class="radio-label-inline">Não</label>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Possui Gramado?</label>
+                        <input type="radio" id="gramado_sim" name="possui_gramado" value="sim"> <label for="gramado_sim" class="radio-label-inline">Sim</label>
+                        <input type="radio" id="gramado_nao" name="possui_gramado" value="nao" checked> <label for="gramado_nao" class="radio-label-inline">Não</label>
+                    </div>
+                    <div class="form-group">
+                        <label>Possui Sala de Vacinação?</label>
+                        <input type="radio" id="sala_vacinacao_sim" name="possui_sala_vacinacao" value="sim"> <label for="sala_vacinacao_sim" class="radio-label-inline">Sim</label>
+                        <input type="radio" id="sala_vacinacao_nao" name="possui_sala_vacinacao" value="nao" checked> <label for="sala_vacinacao_nao" class="radio-label-inline">Não</label>
+                    </div>
+                    <div class="form-group">
+                        <label>Possui Sala de Curativo?</label>
+                        <input type="radio" id="sala_curativo_sim" name="possui_sala_curativo" value="sim"> <label for="sala_curativo_sim" class="radio-label-inline">Sim</label>
+                        <input type="radio" id="sala_curativo_nao" name="possui_sala_curativo" value="nao" checked> <label for="sala_curativo_nao" class="radio-label-inline">Não</label>
+                    </div>
+
+                    </form>
+            </section>
+            </div>
+    </div>
+
+<script>
+    $(document).ready(function() {
+        // ... (código JS existente para Select2, data, vidros, medidas dinâmicas) ...
+
+        // Lógica para Estacionamento Coberto
+        const estacionamentoSim = document.getElementById('estacionamento_sim');
+        const estacionamentoNao = document.getElementById('estacionamento_nao');
+        const estacionamentoCobertoCampo = document.getElementById('estacionamento_coberto_campo');
+        const estacionamentoCobertoNaoRadio = document.getElementById('estacionamento_coberto_nao');
+
+        function toggleEstacionamentoCoberto() {
+            if (estacionamentoSim.checked) {
+                estacionamentoCobertoCampo.style.display = 'block';
+            } else {
+                estacionamentoCobertoCampo.style.display = 'none';
+                estacionamentoCobertoNaoRadio.checked = true; // Garante que "coberto" seja "não" se não houver estacionamento
+            }
+        }
+        estacionamentoSim.addEventListener('change', toggleEstacionamentoCoberto);
+        estacionamentoNao.addEventListener('change', toggleEstacionamentoCoberto);
+        toggleEstacionamentoCoberto(); // Estado inicial
+
+        // Ao limpar o formulário (dentro de document.getElementById('novaUnidadeBtn').addEventListener('click', () => { ... }))
+        // ...
+        document.getElementById('estacionamento_nao').checked = true;
+        // Chamar toggleEstacionamentoCoberto() para resetar a visibilidade e o valor do campo coberto
+        toggleEstacionamentoCoberto(); 
+        document.getElementById('gramado_nao').checked = true;
+        document.getElementById('sala_vacinacao_nao').checked = true;
+        document.getElementById('sala_curativo_nao').checked = true;
+        // ...
+    });
+</script>

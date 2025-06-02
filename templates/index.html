@@ -1,0 +1,339 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cadastro de Localidades e Medidas</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <div class="container">
+        <h1>Cadastro de Unidades e Medidas</h1>
+
+        {% with messages = get_flashed_messages() %}
+            {% if messages %}
+                <ul class="flashes">
+                    {% for message in messages %}
+                        <li>{{ message }}</li>
+                    {% endfor %}
+                </ul>
+            {% endif %}
+        {% endwith %}
+
+        <form id="cadastroForm" action="{{ url_for('adicionar_unidade') }}" method="POST">
+            <div class="form-group">
+                <label for="localidade_nome">Localidade:</label>
+                <input type="text" id="localidade_nome" name="localidade_nome" list="existingLocalidades" required>
+                <datalist id="existingLocalidades">
+                    {% for localidade in localidades %}
+                        <option value="{{ localidade.nome }}">
+                    {% endfor %}
+                </datalist>
+            </div>
+            <div class="form-group">
+                <label for="unidade_nome">Nome da Unidade:</label>
+                <input type="text" id="unidade_nome" name="unidade_nome" required>
+            </div>
+            <div class="form-group">
+                <label for="data">Data:</label>
+                <input type="date" id="data" name="data" required>
+            </div>
+            <div class="form-group">
+                <label for="responsavel">Responsável pela unidade:</label>
+                <input type="text" id="responsavel" name="responsavel">
+            </div>
+            <div class="form-group">
+                <label for="qtd_func">Quantidade de Funcionário:</label>
+                <input type="number" id="qtd_func" name="qtd_func" min="0">
+            </div>
+
+            <div class="form-group">
+                <label>Tipo de Piso:</label>
+                <div class="checkbox-group vertical-checkbox-group">
+                    {% for piso in tipos_piso %}
+                        <div>
+                            <input type="checkbox" id="piso_{{ piso }}" name="piso_{{ piso }}">
+                            <label for="piso_{{ piso }}">{{ piso }}</label>
+                        </div>
+                    {% endfor %}
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label>Vidros Altos:</label>
+                <div class="radio-group vertical-checkbox-group">
+                    <div>
+                        <input type="radio" id="vidros_sim" name="vidros_altos" value="Sim">
+                        <label for="vidros_sim">Sim</label>
+                    </div>
+                    <div>
+                        <input type="radio" id="vidros_nao" name="vidros_altos" value="Não" checked>
+                        <label for="vidros_nao">Não</label>
+                    </div>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label>Paredes:</label>
+                <div class="checkbox-group vertical-checkbox-group">
+                    {% for parede in tipos_parede %}
+                        <div>
+                            <input type="checkbox" id="parede_{{ parede }}" name="parede_{{ parede }}">
+                            <label for="parede_{{ parede }}">{{ parede }}</label>
+                        </div>
+                    {% endfor %}
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label>Outras Informações:</label>
+                <div class="checkbox-group vertical-checkbox-group">
+                    <div>
+                        <input type="checkbox" id="estacionamento" name="estacionamento">
+                        <label for="estacionamento">Estacionamento</label>
+                    </div>
+                    <div>
+                        <input type="checkbox" id="gramado" name="gramado">
+                        <label for="gramado">Gramado</label>
+                    </div>
+                    <div>
+                        <input type="checkbox" id="curativo" name="curativo">
+                        <label for="curativo">Sala de Curativo</label>
+                    </div>
+                    <div>
+                        <input type="checkbox" id="vacina" name="vacina">
+                        <label for="vacina">Sala de Vacina</label>
+                    </div>
+                </div>
+            </div>
+
+            <h2>Medidas</h2>
+            <div class="form-group">
+                <label>Tipos de Medida:</label>
+                <div class="checkbox-group vertical-checkbox-group">
+                    {% for tipo in tipos_medida %}
+                        <div>
+                            <input type="checkbox" id="medida_tipo_{{ tipo }}" name="medida_tipo_{{ tipo }}" class="medida-tipo-checkbox">
+                            <label for="medida_tipo_{{ tipo }}">{{ tipo }}</label>
+                        </div>
+                    {% endfor %}
+                </div>
+            </div>
+            <div class="form-group inline-group">
+                <div>
+                    <label for="comprimento">Comprimento (m):</label>
+                    <input type="number" step="0.01" id="comprimento">
+                </div>
+                <div>
+                    <label for="largura">Largura (m):</label>
+                    <input type="number" step="0.01" id="largura">
+                </div>
+            </div>
+            <div class="button-group">
+                <button type="button" id="adicionarMedidaBtn" class="btn">Adicionar Medida</button>
+                <button type="button" id="excluirMedidaBtn" class="btn btn-danger">Excluir Medida</button>
+                <button type="button" id="repetirMedidaBtn" class="btn">Repetir Medida</button>
+            </div>
+
+            <ul id="medidasList" class="medida-list"></ul>
+
+            <input type="hidden" id="medidasJson" name="medidas_json" value="[]">
+
+            <input type="hidden" id="vidros_comprimento_hidden" name="vidros_comprimento">
+            <input type="hidden" id="vidros_largura_hidden" name="vidros_largura">
+            <input type="hidden" id="area_interna_comprimento_hidden" name="area_interna_comprimento">
+            <input type="hidden" id="area_interna_largura_hidden" name="area_interna_largura">
+            <input type="hidden" id="area_externa_comprimento_hidden" name="area_externa_comprimento">
+            <input type="hidden" id="area_externa_largura_hidden" name="area_externa_largura">
+            <input type="hidden" id="vestiario_comprimento_hidden" name="vestiario_comprimento">
+            <input type="hidden" id="vestiario_largura_hidden" name="vestiario_largura">
+
+            <div class="button-group main-actions">
+                <button type="submit" class="btn btn-primary">Salvar Unidade</button>
+                <button type="button" id="novaUnidadeBtn" class="btn">Nova Unidade</button>
+            </div>
+        </form>
+
+        <hr>
+
+        <div class="select-and-buttons">
+             <form id="exportAndEmailForm" method="GET" action="{{ url_for('exportar_e_enviar') }}">
+                <div class="form-group" style="display:inline-block; margin-right: 10px;">
+                    <label for="recipient_email">E-mail para Envio:</label>
+                    <input type="email" id="recipient_email" name="recipient_email" placeholder="comercialservico2025@gmail.com" value="comercialservico2025@gmail.com" readonly>
+                </div>
+                <button type="submit" class="btn btn-success">Exportar Excel e Enviar por E-mail</button>
+            </form>
+        </div>
+        <div style="margin-top: 20px;">
+            <h2>Localidades Cadastradas</h2>
+            <ul>
+                {% for localidade in localidades %}
+                    <li>
+                        <a href="{{ url_for('ver_localidade', id=localidade.id) }}">
+                            {{ localidade.nome }}
+                        </a>
+                        <ul>
+                            {% for unidade in localidade.unidades %}
+                                <li>{{ unidade.nome }} ({{ unidade.data }})</li>
+                            {% endfor %}
+                        </ul>
+                    </li>
+                {% endfor %}
+            </ul>
+        </div>
+    </div>
+
+    <script>
+        let medidasData = []; // Global array to store measures in the frontend
+
+        document.addEventListener('DOMContentLoaded', () => {
+            const cadastroForm = document.getElementById('cadastroForm');
+            const medidasList = document.getElementById('medidasList');
+            const medidasJsonInput = document.getElementById('medidasJson');
+
+            // Set today's date on page load
+            const today = new Date();
+            const yyyy = today.getFullYear();
+            const mm = String(today.getMonth() + 1).padStart(2, '0'); // Month starts from 0
+            const dd = String(today.getDate()).padStart(2, '0');
+            document.getElementById('data').value = `${yyyy}-${mm}-${dd}`;
+
+
+            function updateMeasuresListAndHiddenFields() {
+                // Clears the visual list of measures
+                medidasList.innerHTML = '';
+                // Add each measure to the list
+                medidasData.forEach((medida, index) => {
+                    const li = document.createElement('li');
+                    li.textContent = `${medida[0]}: ${medida[1]}m x ${medida[2]}m = ${medida[3].toFixed(2)} m²`;
+                    li.dataset.index = index; // Store index for easy removal
+                    medidasList.appendChild(li);
+                });
+                // Update the hidden field with the JSON version of measures
+                medidasJsonInput.value = JSON.stringify(medidasData);
+
+                // Update specific hidden fields for direct database columns
+                let vidrosComp = '';
+                let vidrosLarg = '';
+                let areaInternaComp = '';
+                let areaInternaLarg = '';
+                let areaExternaComp = '';
+                let areaExternaLarg = '';
+                let vestiarioComp = '';
+                let vestiarioLarg = '';
+
+                // This logic ensures that if multiple measures of the same type (e.g., "Vidros")
+                // are added, the *last one* will populate the dedicated DB columns.
+                // The 'medidas' JSON field will still contain all of them.
+                medidasData.forEach(medida => {
+                    if (medida[0] === 'Vidros') {
+                        vidrosComp = medida[1];
+                        vidrosLarg = medida[2];
+                    } else if (medida[0] === 'Área Interna') {
+                        areaInternaComp = medida[1];
+                        areaInternaLarg = medida[2];
+                    } else if (medida[0] === 'Área Externa') {
+                        areaExternaComp = medida[1];
+                        areaExternaLarg = medida[2];
+                    } else if (medida[0] === 'Vestiário') {
+                        vestiarioComp = medida[1];
+                        vestiarioLarg = medida[2];
+                    }
+                });
+
+                document.getElementById('vidros_comprimento_hidden').value = vidrosComp;
+                document.getElementById('vidros_largura_hidden').value = vidrosLarg;
+                document.getElementById('area_interna_comprimento_hidden').value = areaInternaComp;
+                document.getElementById('area_interna_largura_hidden').value = areaInternaLarg;
+                document.getElementById('area_externa_comprimento_hidden').value = areaExternaComp;
+                document.getElementById('area_externa_largura_hidden').value = areaExternaLarg;
+                document.getElementById('vestiario_comprimento_hidden').value = vestiarioComp;
+                document.getElementById('vestiario_largura_hidden').value = vestiarioLarg;
+            }
+
+            document.getElementById('adicionarMedidaBtn').addEventListener('click', () => {
+                const comprimento = parseFloat(document.getElementById('comprimento').value.replace(',', '.'));
+                const largura = parseFloat(document.getElementById('largura').value.replace(',', '.'));
+                const tipoCheckboxes = document.querySelectorAll('.medida-tipo-checkbox:checked');
+
+                // Validation for measure fields
+                if (isNaN(comprimento) || isNaN(largura) || comprimento <= 0 || largura <= 0) {
+                    alert("Comprimento e largura devem ser números positivos válidos.");
+                    return;
+                }
+                if (tipoCheckboxes.length === 0) {
+                    alert("Selecione ao menos um tipo de medida.");
+                    return;
+                }
+
+                const area = comprimento * largura;
+                // Add the measure for each selected type
+                tipoCheckboxes.forEach(checkbox => {
+                    medidasData.push([checkbox.id.replace('medida_tipo_', ''), comprimento, largura, area]);
+                });
+
+                // Clear input fields for length and width
+                document.getElementById('comprimento').value = '';
+                document.getElementById('largura').value = '';
+                updateMeasuresListAndHiddenFields(); // Update the visual list and hidden fields
+            });
+
+            document.getElementById('excluirMedidaBtn').addEventListener('click', () => {
+                const selectedLi = medidasList.querySelector('.selected');
+                if (selectedLi) {
+                    const index = parseInt(selectedLi.dataset.index);
+                    medidasData.splice(index, 1); // Remove the measure from the array
+                    updateMeasuresListAndHiddenFields(); // Update the visual list and hidden fields
+                } else {
+                    alert("Selecione uma medida para excluir.");
+                }
+            });
+
+            document.getElementById('repetirMedidaBtn').addEventListener('click', () => {
+                const selectedLi = medidasList.querySelector('.selected');
+                if (selectedLi) {
+                    const index = parseInt(selectedLi.dataset.index);
+                    const medidaParaRepetir = medidasData[index];
+                    const count = prompt("Quantas vezes repetir essa medida?", "1");
+                    if (count && !isNaN(parseInt(count)) && parseInt(count) > 0) {
+                        for (let i = 0; i < parseInt(count); i++) {
+                            medidasData.push([...medidaParaRepetir]); // Add a copy of the measure
+                        }
+                        updateMeasuresListAndHiddenFields(); // Update the visual list and hidden fields
+                    } else if (count !== null) {
+                        alert("Por favor, digite um número inteiro positivo.");
+                    }
+                } else {
+                    alert("Selecione uma medida para repetir.");
+                }
+            });
+
+            // Add selection functionality to measure list items
+            medidasList.addEventListener('click', (event) => {
+                medidasList.querySelectorAll('li').forEach(li => li.classList.remove('selected'));
+                if (event.target.tagName === 'LI') {
+                    event.target.classList.add('selected');
+                }
+            });
+
+            // Handle "New Unit" button
+            document.getElementById('novaUnidadeBtn').addEventListener('click', () => {
+                cadastroForm.reset(); // Clear the form
+                document.getElementById('data').value = `${yyyy}-${mm}-${dd}`; // Reset date to today
+                document.getElementById('vidros_nao').checked = true; // Set 'No' as default for high windows
+                medidasData = []; // Clear measures
+                updateMeasuresListAndHiddenFields(); // Update the visual list and hidden fields
+            });
+
+            // The export and email form now directly submits to the backend route
+            // The recipient email is displayed but not used for dynamic sending as per the backend
+            // It just triggers the export of all data to the fixed recipient.
+            document.getElementById('exportAndEmailForm').addEventListener('submit', (event) => {
+                 // No client-side validation needed here, as the backend handles the export of all data.
+                 // The email address shown is just for information.
+            });
+        });
+    </script>
+</body>
+</html>
