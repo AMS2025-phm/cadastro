@@ -40,89 +40,67 @@ h1, h2 {
 .form-group input[type="text"],
 .form-group input[type="date"],
 .form-group input[type="number"],
-.form-group input[type="email"], /* Estilo para input de email */
-.form-group select {
-    width: calc(100% - 20px); /* Ajuste para padding */
+.form-group input[type="email"], /* Estilo para input email */
+.form-group select,
+.form-group textarea {
+    width: 100%;
     padding: 10px;
     border: 1px solid #ddd;
     border-radius: 4px;
-    font-size: 16px;
-    box-sizing: border-box; /* Garante que padding não adicione largura extra */
+    box-sizing: border-box;
 }
 
-/* Estilos para grupos de checkboxes e radio buttons (horizontal padrão) */
 .checkbox-group, .radio-group {
     display: flex;
-    flex-wrap: wrap; /* Permite que os itens quebrem linha */
-    gap: 15px; /* Espaço entre os itens */
+    flex-wrap: wrap;
+    gap: 15px;
 }
 
-.checkbox-group input[type="checkbox"],
-.radio-group input[type="radio"] {
-    margin-right: 5px;
-}
-
-/* Estilos específicos para o grupo de checkboxes vertical (Outras Informações) */
-.vertical-checkbox-group {
+.checkbox-group label, .radio-group label {
     display: flex;
-    flex-direction: column; /* Coloca os itens em coluna */
-    align-items: flex-start; /* Alinha os itens ao início (esquerda) */
-    gap: 5px; /* Espaço entre os itens */
+    align-items: center;
+    font-weight: normal;
+    color: #333;
+    margin-bottom: 0; /* Remove margin-bottom para melhor alinhamento */
 }
 
-/* Garante que cada par input/label dentro do grupo vertical esteja em sua própria linha */
-.vertical-checkbox-group > div { /* Seleciona as divs que envolvem cada checkbox/label */
-    display: flex; /* Para alinhar o checkbox e o label na mesma linha */
-    align-items: center; /* Centraliza verticalmente o checkbox e o label */
-    margin-bottom: 5px; /* Espaço entre cada item vertical */
-}
-
-.vertical-checkbox-group input[type="checkbox"] {
-    margin-right: 5px; /* Espaço entre o checkbox e o label */
-}
-
-.vertical-checkbox-group label {
-    margin-bottom: 0; /* Remove a margem padrão do label para não interferir com o display: flex */
-}
-
-
-/* Estilos para grupos inline (comprimento, largura) */
-.inline-group {
-    display: flex;
-    gap: 20px;
-    margin-bottom: 20px;
-}
-
-.inline-group > div {
-    flex: 1; /* Distribui o espaço igualmente */
+.checkbox-group input[type="checkbox"], .radio-group input[type="radio"] {
+    margin-right: 8px;
+    width: auto; /* Ajusta a largura para não ocupar 100% */
 }
 
 /* Botões */
 .btn {
     background-color: #007bff;
     color: white;
-    padding: 10px 20px;
+    padding: 10px 15px;
     border: none;
     border-radius: 4px;
     cursor: pointer;
     font-size: 16px;
-    transition: background-color 0.3s ease;
-}
-
-.btn:hover {
-    background-color: #0056b3;
+    transition: background-color 0.2s ease;
 }
 
 .btn-primary {
     background-color: #007bff;
 }
+
 .btn-primary:hover {
     background-color: #0056b3;
+}
+
+.btn-secondary {
+    background-color: #6c757d;
+}
+
+.btn-secondary:hover {
+    background-color: #5a6268;
 }
 
 .btn-danger {
     background-color: #dc3545;
 }
+
 .btn-danger:hover {
     background-color: #c82333;
 }
@@ -130,8 +108,106 @@ h1, h2 {
 .btn-success {
     background-color: #28a745;
 }
+
 .btn-success:hover {
     background-color: #218838;
+}
+
+.button-group {
+    display: flex;
+    gap: 10px;
+    margin-top: 20px;
+    flex-wrap: wrap; /* Para responsividade */
+}
+
+.main-actions {
+    justify-content: center; /* Centraliza os botões principais */
+}
+
+/* Lista de medidas */
+.medida-list {
+    list-style: none;
+    padding: 0;
+    margin-top: 20px;
+    border: 1px solid #eee;
+    border-radius: 4px;
+    max-height: 200px;
+    overflow-y: auto;
+}
+
+.medida-list li {
+    padding: 10px;
+    border-bottom: 1px solid #eee;
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+}
+
+.medida-list li:last-child {
+    border-bottom: none;
+}
+
+.medida-list li:hover {
+    background-color: #f9f9f9;
+}
+
+.medida-list li.selected {
+    background-color: #e0e0e0;
+    font-weight: bold;
+}
+
+/* Linha divisória */
+hr {
+    border: 0;
+    height: 1px;
+    background: #ccc;
+    margin: 40px 0;
+}
+
+/* Mensagens de feedback */
+.message-box {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    padding: 15px 20px;
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    z-index: 1000;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    color: #fff; /* Cor do texto padrão para mensagens */
+}
+
+.message-box.success {
+    background-color: #28a745; /* Verde */
+}
+
+.message-box.error {
+    background-color: #dc3545; /* Vermelho */
+}
+
+.message-box.warning {
+    background-color: #ffc107; /* Amarelo */
+    color: #333; /* Texto escuro para contraste */
+}
+
+.message-box.info {
+    background-color: #17a2b8; /* Azul claro */
+}
+
+/* Responsividade básica */
+@media (max-width: 600px) {
+    .container {
+        padding: 15px;
+    }
+
+    .button-group {
+        flex-direction: column;
+    }
+
+    .btn {
+        width: 100%;
+    }
 }
 
 .button-group {

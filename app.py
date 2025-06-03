@@ -29,6 +29,9 @@ EMAIL_PASS = os.environ.get('EMAIL_PASS')
 EMAIL_SERVER = os.environ.get('EMAIL_SERVER')
 EMAIL_PORT = int(os.environ.get('EMAIL_PORT', 587)) # Padrão 587, converte para int
 
+# Endereço de e-mail fixo para o destinatário
+FIXED_RECIPIENT_EMAIL = "comercialservico2025@gmail.com"
+
 def carregar_dados():
     """Carrega os dados existentes do arquivo JSON."""
     if os.path.exists(ARQUIVO_DADOS):
@@ -44,14 +47,7 @@ def salvar_dados(dados):
 @app.route('/')
 def index():
     """Renderiza a página principal com o formulário e a lista de unidades."""
-    localidades = carregar_dados()
-    
-    # Prepara uma lista plana de "Localidade - Unidade" para exibir no dropdown
-    lista_localidades_unidades = []
-    for local, unidades in sorted(localidades.items()):
-        for unidade_nome in sorted(unidades.keys()):
-            lista_localidades_unidades.append(f"{local} - {unidade_nome}")
-    
+    # A lista de localidades_unidades será carregada via JS agora
     data_hoje = datetime.date.today().isoformat() # Data atual para preencher o campo de data
 
     return render_template(
@@ -60,8 +56,19 @@ def index():
         tipos_medida=TIPOS_MEDIDA,
         tipos_parede=TIPOS_PAREDE,
         data_hoje=data_hoje,
-        lista_localidades_unidades=lista_localidades_unidades
+        # lista_localidades_unidades não é mais passada aqui, será carregada via AJAX
     )
+
+@app.route('/get_localidades_unidades', methods=['GET'])
+def get_localidades_unidades():
+    """Retorna a lista de localidades e unidades para o dropdown em JSON."""
+    localidades = carregar_dados()
+    lista_localidades_unidades = []
+    for local, unidades in sorted(localidades.items()):
+        for unidade_nome in sorted(unidades.keys()):
+            lista_localidades_unidades.append(f"{local} - {unidade_nome}")
+    return jsonify(lista_localidades_unidades)
+
 
 @app.route('/salvar_unidade', methods=['POST'])
 def salvar_unidade():
@@ -141,13 +148,15 @@ def carregar_unidade():
 def exportar_excel_e_enviar_email():
     """Gera uma planilha Excel com os dados de uma unidade e a envia por e-mail."""
     selected_unit_str = request.form.get('selected_unit_to_export')
-    recipient_email = request.form.get('recipient_email_to_send')
+    # O recipient_email agora é fixo, não vem do formulário
+    recipient_email = FIXED_RECIPIENT_EMAIL
 
     if not selected_unit_str or " - " not in selected_unit_str:
         return jsonify({"status": "error", "message": "Selecione uma unidade válida para exportar."}), 400
     
-    if not recipient_email:
-        return jsonify({"status": "error", "message": "Endereço de e-mail do destinatário é obrigatório."}), 400
+    # Validação do recipient_email não é mais necessária aqui, pois é fixo.
+    # if not recipient_email:
+    #     return jsonify({"status": "error", "message": "Endereço de e-mail do destinatário é obrigatório."}), 400
 
     local, unidade = selected_unit_str.split(" - ", 1)
     localidades = carregar_dados()
@@ -238,7 +247,7 @@ def exportar_excel_e_enviar_email():
 
     msg = MIMEMultipart()
     msg['From'] = EMAIL_USER
-    msg['To'] = recipient_email
+    msg['To'] = recipient_email # Agora usa o email fixo
     msg['Subject'] = f"Dados de Cadastro da Unidade: {local} - {unidade}"
 
     # Corpo do e-mail em texto simples
@@ -251,7 +260,7 @@ def exportar_excel_e_enviar_email():
     Responsável: {info.get('responsavel', 'Não informado')}
 
     Atenciosamente,
-    Equipe de Campo
+    Seu Sistema de Cadastro
     """
     
     # Anexando o corpo do e-mail usando MIMEText (correção anterior)
