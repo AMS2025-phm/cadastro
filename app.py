@@ -34,7 +34,7 @@ FIXED_RECIPIENT_EMAIL = "comercialservico2025@gmail.com"
 
 def carregar_dados():
     """Carrega os dados existentes do arquivo JSON."""
-    if os.path.exists(ARQUIVO_DIDADES):
+    if os.path.exists(ARQUIVO_LOCALIDADES):
         with open(ARQUIVO_DADOS, "r", encoding="utf-8") as f:
             return json.load(f)
     return {}
