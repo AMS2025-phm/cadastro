@@ -191,13 +191,16 @@
                 const index = container.children.length;
                 const block = document.createElement('div');
                 block.style.display = 'flex';
-                block.style.flexDirection = 'column';
+                block.style.flexDirection = 'row';
+                block.style.alignItems = 'center';
+                block.style.flexWrap = 'wrap';
+                block.style.gap = '10px';
                 block.style.gap = '5px';
                 block.innerHTML = `
-                    <label>${type} #${index + 1}</label>
-                    <input type="number" placeholder="Largura (m)" step="0.01" class="largura">
-                    <input type="number" placeholder="Comprimento (m)" step="0.01" class="comprimento">
-                    <input type="number" placeholder="Área (m²)" step="0.01" class="area" readonly>
+                    <label style="width: 100%;">${type} #${index + 1}</label>
+                    <input type="number" placeholder="Largura (m)" step="0.01" class="largura" style="width: 100px;">
+                    <input type="number" placeholder="Comprimento (m)" step="0.01" class="comprimento" style="width: 100px;">
+                    <input type="number" placeholder="Área (m²)" step="0.01" class="area" readonly style="width: 100px;">
                 `;
 
                 const larguraInput = block.querySelector('.largura');
@@ -235,4 +238,5 @@
     </script>
 </body>
 </html>
+
 
