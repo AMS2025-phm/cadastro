@@ -113,6 +113,9 @@
             const vidrosAltosCheckbox = document.getElementById('vidros_altos');
             const perigoLimparVidrosGroup = document.getElementById('perigo-limpar-vidros-group');
 
+            const tiposPisoCheckboxesContainer = document.getElementById('tipos-piso-checkboxes');
+            const tiposParedeCheckboxesContainer = document.getElementById('tipos-parede-checkboxes');
+
             function updateEstacionamentoCobertoVisibility() {
                 if (estacionamentoCheckbox.checked) {
                     estacionamentoCobertoGroup.classList.remove('hidden');
@@ -136,6 +139,40 @@
 
             updateEstacionamentoCobertoVisibility();
             updatePerigoLimparVidrosVisibility();
+
+            async function loadDropdownOptions() {
+                try {
+                    const [pisoRes, paredeRes] = await Promise.all([
+                        fetch(`${window.location.origin}/get_tipos_piso`),
+                        fetch(`${window.location.origin}/get_tipos_parede`)
+                    ]);
+
+                    const tiposPiso = await pisoRes.json();
+                    const tiposParede = await paredeRes.json();
+
+                    tiposPisoCheckboxesContainer.innerHTML = '';
+                    tiposPiso.forEach((piso, index) => {
+                        const checkboxId = `piso_unidade_${index}`;
+                        tiposPisoCheckboxesContainer.innerHTML += `
+                            <input type="checkbox" id="${checkboxId}" name="tipos_piso_selecionados" value="${piso}">
+                            <label for="${checkboxId}">${piso}</label>
+                        `;
+                    });
+
+                    tiposParedeCheckboxesContainer.innerHTML = '';
+                    tiposParede.forEach((parede, index) => {
+                        const checkboxId = `parede_unidade_${index}`;
+                        tiposParedeCheckboxesContainer.innerHTML += `
+                            <input type="checkbox" id="${checkboxId}" name="tipos_parede_selecionados" value="${parede}">
+                            <label for="${checkboxId}">${parede}</label>
+                        `;
+                    });
+                } catch (error) {
+                    console.error('Erro ao carregar opções:', error);
+                }
+            }
+
+            loadDropdownOptions();
         });
     </script>
 </body>
