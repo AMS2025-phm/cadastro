@@ -1,6 +1,1 @@
 Flask
-openpyxl==3.1.2
-gunicorn
-psycopg2-binary  # Driver PostgreSQL
-SQLAlchemy       # ORM principal
-Flask-SQLAlchemy # Extensão para integrar SQLAlchemy com Flask
