@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cadastro de Localidades e Medidas</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <div class="container">
+        <h1>Cadastro de Localidades e Medidas por Unidade</h1>
+
+        <form id="cadastroForm">
+            <div class="form-group">
+                <label for="localidade">Localidade:</label>
+                <input type="text" id="localidade" name="localidade" required>
+            </div>
+            <div class="form-group">
+                <label for="unidade">Unidade:</label>
+                <input type="text" id="unidade" name="unidade" required>
+            </div>
+            <div class="form-group">
+                <label for="data">Data:</label>
+                <input type="date" id="data" name="data" value="{{ data_hoje }}" required>
+            </div>
+            <div class="form-group">
+                <label for="responsavel">Responsavel pela unidade:</label>
+                <input type="text" id="responsavel" name="responsavel">
+            </div>
+            <div class="form-group">
+                <label for="qtd_func">Quantidade de Funcionário:</label>
+                <input type="number" id="qtd_func" name="qtd_func" min="0">
+            </div>
+
+            <hr>
+            <h2>Medidas da Unidade</h2>
+            <div id="medidas-container">
+                <!-- Medidas serão adicionadas aqui dinamicamente -->
+            </div>
+            <button type="button" id="addMedidaBtn" class="btn secondary-btn">Adicionar Medida</button>
+            <hr>
+
+            <div class="form-actions main-actions">
+                <button type="submit" class="btn">Salvar Unidade e Enviar Excel</button>
+            </div>
+        </form>
+
+        <hr>
+
+        <h2>Unidades Salvas</h2>
+        <div class="form-group">
+            <label for="localidadeUnidadeSelect">Selecionar Unidade Salva:</label>
+            <select id="localidadeUnidadeSelect" name="localidadeUnidadeSelect">
+                <option value="">-- Selecione uma unidade --</option>
+                <!-- Opções serão carregadas dinamicamente aqui -->
+            </select>
+        </div>
+        <div class="form-actions">
+            <button type="button" id="carregarUnidadeBtn" class="btn secondary-btn">Carregar Dados da Unidade</button>
+            <button type="button" id="deletarUnidadeBtn" class="btn delete-btn">Deletar Unidade</button>
+        </div>
+
+        <div id="message-box" class="message-box hidden"></div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const cadastroForm = document.getElementById('cadastroForm');
+            const medidasContainer = document.getElementById('medidas-container');
+            const addMedidaBtn = document.getElementById('addMedidaBtn');
+            const messageBox = document.getElementById('message-box');
+            const localidadeUnidadeSelect = document.getElementById('localidadeUnidadeSelect');
+            const carregarUnidadeBtn = document.getElementById('carregarUnidadeBtn');
+            const deletarUnidadeBtn = document.getElementById('deletarUnidadeBtn');
+
+            // Arrays para armazenar as opções carregadas do backend
+            let tiposPiso = [];
+            let tiposMedida = [];
+            let tiposParede = [];
+
+            // Função para mostrar mensagens ao usuário
+            function showMessage(message, type) {
+                messageBox.textContent = message;
+                messageBox.className = `message-box ${type}`; // 'success' ou 'error' ou 'warning'
+                messageBox.classList.remove('hidden');
+                setTimeout(() => {
+                    messageBox.classList.add('hidden');
+                }, 5000); // Esconde a mensagem após 5 segundos
+            }
+
+            // Função para carregar opções de dropdown do backend
+            async function loadDropdownOptions() {
+                try {
+                    const [pisoRes, medidaRes, paredeRes] = await Promise.all([
+                        fetch(`${window.location.origin}/get_tipos_piso`),
+                        fetch(`${window.location.origin}/get_tipos_medida`),
+                        fetch(`${window.location.origin}/get_tipos_parede`)
+                    ]);
+
+                    tiposPiso = await pisoRes.json();
+                    tiposMedida = await medidaRes.json();
+                    tiposParede = await paredeRes.json();
+
+                } catch (error) {
+                    console.error('Erro ao carregar opções de dropdown:', error);
+                    showMessage('Erro ao carregar opções de formulário.', 'error');
+                }
+            }
+
+            // Função para adicionar um novo bloco de medida
+            function addMedidaBlock(medidaData = {}) {
+                const medidaIndex = medidasContainer.children.length;
+                const medidaBlock = document.createElement('div');
+                medidaBlock.classList.add('medida-block');
+                medidaBlock.innerHTML = `
+                    <h3>Medida #${medidaIndex + 1} <button type="button" class="remove-medida-btn btn delete-btn">Remover</button></h3>
+                    <div class="form-group">
+                        <label for="tipo_medida_${medidaIndex}">Tipo de Medida:</label>
+                        <select id="tipo_medida_${medidaIndex}" name="medidas[${medidaIndex}][tipo]" required>
+                            <option value="">-- Selecione --</option>
+                            ${tiposMedida.map(tipo => `<option value="${tipo}" ${medidaData.tipo === tipo ? 'selected' : ''}>${tipo}</option>`).join('')}
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="largura_${medidaIndex}">Largura (m):</label>
+                        <input type="number" id="largura_${medidaIndex}" name="medidas[${medidaIndex}][largura]" step="0.01" value="${medidaData.largura || ''}">
+                    </div>
+                    <div class="form-group">
+                        <label for="altura_${medidaIndex}">Altura (m):</label>
+                        <input type="number" id="altura_${medidaIndex}" name="medidas[${medidaIndex}][altura]" step="0.01" value="${medidaData.altura || ''}">
+                    </div>
+                    <div class="form-group">
+                        <label for="area_${medidaIndex}">Área (m²):</label>
+                        <input type="number" id="area_${medidaIndex}" name="medidas[${medidaIndex}][area]" step="0.01" value="${medidaData.area || ''}">
+                    </div>
+                    <div class="form-group">
+                        <label for="piso_${medidaIndex}">Tipo de Piso:</label>
+                        <select id="piso_${medidaIndex}" name="medidas[${medidaIndex}][piso]">
+                            <option value="">-- Selecione --</option>
+                            ${tiposPiso.map(piso => `<option value="${piso}" ${medidaData.piso === piso ? 'selected' : ''}>${piso}</option>`).join('')}
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="parede_${medidaIndex}">Tipo de Parede:</label>
+                        <select id="parede_${medidaIndex}" name="medidas[${medidaIndex}][parede]">
+                            <option value="">-- Selecione --</option>
+                            ${tiposParede.map(parede => `<option value="${parede}" ${medidaData.parede === parede ? 'selected' : ''}>${parede}</option>`).join('')}
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="qtde_${medidaIndex}">Quantidade:</label>
+                        <input type="number" id="qtde_${medidaIndex}" name="medidas[${medidaIndex}][qtde]" min="1" value="${medidaData.qtde || ''}">
+                    </div>
+                `;
+                medidasContainer.appendChild(medidaBlock);
+
+                // Adicionar evento para remover medida
+                medidaBlock.querySelector('.remove-medida-btn').addEventListener('click', function() {
+                    medidaBlock.remove();
+                    // Opcional: Reindexar os nomes dos campos se a ordem for importante no backend
+                });
+            }
+
+            // Event listener para adicionar medida
+            addMedidaBtn.addEventListener('click', () => addMedidaBlock());
+
+            // Event listener para o formulário de cadastro
+            cadastroForm.addEventListener('submit', async function(event) {
+                event.preventDefault();
+
+                const formData = new FormData(cadastroForm);
+                const dados = {};
+                dados.medidas = [];
+
+                // Coleta os dados principais
+                dados.localidade = formData.get('localidade');
+                dados.unidade = formData.get('unidade');
+                dados.data = formData.get('data');
+                dados.responsavel = formData.get('responsavel');
+                dados.qtd_func = formData.get('qtd_func');
+
+                // Coleta os dados das medidas
+                medidasContainer.querySelectorAll('.medida-block').forEach((block, index) => {
+                    const medida = {};
+                    medida.tipo = block.querySelector(`[name="medidas[${index}][tipo]"]`).value;
+                    medida.largura = parseFloat(block.querySelector(`[name="medidas[${index}][largura]"]`).value) || null;
+                    medida.altura = parseFloat(block.querySelector(`[name="medidas[${index}][altura]"]`).value) || null;
+                    medida.area = parseFloat(block.querySelector(`[name="medidas[${index}][area]"]`).value) || null;
+                    medida.piso = block.querySelector(`[name="medidas[${index}][piso]"]`).value;
+                    medida.parede = block.querySelector(`[name="medidas[${index}][parede]"]`).value;
+                    medida.qtde = parseInt(block.querySelector(`[name="medidas[${index}][qtde]"]`).value) || null;
+                    dados.medidas.push(medida);
+                });
+
+                try {
+                    const response = await fetch(`${window.location.origin}/salvar_unidade`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify(dados)
+                    });
+
+                    const result = await response.json();
+                    if (response.ok) {
+                        showMessage(result.message, 'success');
+                        cadastroForm.reset(); // Limpa o formulário
+                        medidasContainer.innerHTML = ''; // Remove os blocos de medida
+                        carregarListaUnidadesSalvas(); // Recarrega a lista de unidades salvas
+                    } else {
+                        showMessage(result.message, 'error');
+                    }
+                } catch (error) {
+                    console.error('Erro ao salvar unidade:', error);
+                    showMessage('Erro ao conectar com o servidor para salvar a unidade.', 'error');
+                }
+            });
+
+            // Função para carregar a lista de unidades salvas para o dropdown
+            async function carregarListaUnidadesSalvas() {
+                try {
+                    const response = await fetch(`${window.location.origin}/get_unidades_salvas`);
+                    const contentType = response.headers.get("content-type");
+                    if (contentType && contentType.includes("application/json")) {
+                        const listaUnidades = await response.json();
+                        
+                        localidadeUnidadeSelect.innerHTML = '<option value="">-- Selecione uma unidade --</option>';
+                        listaUnidades.forEach(item => {
+                            const option = document.createElement('option');
+                            option.value = item;
+                            option.textContent = item;
+                            localidadeUnidadeSelect.appendChild(option);
+                        });
+                    } else {
+                        const rawText = await response.text();
+                        console.error('Resposta inesperada do servidor (não é JSON):', rawText);
+                        showMessage('Resposta inesperada do servidor ao carregar unidades. Formato inválido.', 'error');
+                    }
+
+                } catch (error) {
+                    console.error('Erro ao recarregar lista de unidades:', error);
+                    showMessage('Erro ao carregar lista de unidades salvas.', 'error');
+                }
+            }
+
+            // Inicializar a lista de medidas e unidades salvas ao carregar a página
+            loadDropdownOptions(); // Carrega as opções dos dropdowns
+            carregarListaUnidadesSalvas(); // Chama para popular o dropdown ao carregar a página
+        });
+    </script>
+</body>
+</html>
