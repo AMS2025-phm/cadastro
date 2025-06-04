@@ -1,6 +1,1 @@
-body { font-family: Arial; margin: 20px; }
-.container { max-width: 600px; margin: auto; padding: 20px; border: 1px solid #ccc; border-radius: 8px; }
-.form-group { margin-bottom: 15px; }
-input { padding: 8px; width: 100%; box-sizing: border-box; }
-button { padding: 10px; background: #28a745; color: white; border: none; cursor: pointer; border-radius: 5px; }
-button:hover { background: #218838; }
+body { font-family: Arial; }
