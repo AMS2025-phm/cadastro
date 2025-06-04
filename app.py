@@ -38,4 +38,4 @@ def salvar_unidade():
     return jsonify({"message": "Unidade salva e planilha gerada com sucesso!"})
 
 if __name__ == '__main__':
-    app.run()
+    app.run(debug=True)
