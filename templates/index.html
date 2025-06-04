@@ -78,8 +78,21 @@
             </div>
 
             <hr>
-            <h2>Medidas da Unidade</h2>
-            <div id="medidas-container"></div>
+            <h2>Vidros</h2>
+            <div id="vidros-container" class="checkbox-options-group" style="display: flex; flex-direction: column; gap: 10px; padding: 10px; border: 1px solid #ddd; border-radius: 5px; background-color: #f9f9f9;"></div>
+            <button type="button" id="addVidroBtn" class="btn secondary-btn">Adicionar Vidro</button>
+
+            <h2>Sanitários</h2>
+            <div id="sanitarios-container" class="checkbox-options-group" style="display: flex; flex-direction: column; gap: 10px; padding: 10px; border: 1px solid #ddd; border-radius: 5px; background-color: #f9f9f9;"></div>
+            <button type="button" id="addSanitarioBtn" class="btn secondary-btn">Adicionar Sanitário</button>
+
+            <h2>Áreas Internas</h2>
+            <div id="internas-container" class="checkbox-options-group" style="display: flex; flex-direction: column; gap: 10px; padding: 10px; border: 1px solid #ddd; border-radius: 5px; background-color: #f9f9f9;"></div>
+            <button type="button" id="addInternaBtn" class="btn secondary-btn">Adicionar Área Interna</button>
+
+            <h2>Áreas Externas</h2>
+            <div id="externas-container" class="checkbox-options-group" style="display: flex; flex-direction: column; gap: 10px; padding: 10px; border: 1px solid #ddd; border-radius: 5px; background-color: #f9f9f9;"></div>
+            <button type="button" id="addExternaBtn" class="btn secondary-btn">Adicionar Área Externa</button>
             <button type="button" id="addMedidaBtn" class="btn secondary-btn">Adicionar Medida</button>
             <hr>
 
@@ -173,7 +186,53 @@
             }
 
             loadDropdownOptions();
+
+            function addMedidaBlock(container, type) {
+                const index = container.children.length;
+                const block = document.createElement('div');
+                block.style.display = 'flex';
+                block.style.flexDirection = 'column';
+                block.style.gap = '5px';
+                block.innerHTML = `
+                    <label>${type} #${index + 1}</label>
+                    <input type="number" placeholder="Largura (m)" step="0.01" class="largura">
+                    <input type="number" placeholder="Comprimento (m)" step="0.01" class="comprimento">
+                    <input type="number" placeholder="Área (m²)" step="0.01" class="area" readonly>
+                `;
+
+                const larguraInput = block.querySelector('.largura');
+                const comprimentoInput = block.querySelector('.comprimento');
+                const areaInput = block.querySelector('.area');
+
+                function calcularArea() {
+                    const largura = parseFloat(larguraInput.value) || 0;
+                    const comprimento = parseFloat(comprimentoInput.value) || 0;
+                    areaInput.value = (largura * comprimento).toFixed(2);
+                }
+
+                larguraInput.addEventListener('input', calcularArea);
+                comprimentoInput.addEventListener('input', calcularArea);
+
+                container.appendChild(block);
+            }
+
+            document.getElementById('addVidroBtn').addEventListener('click', function() {
+                addMedidaBlock(document.getElementById('vidros-container'), 'Vidro');
+            });
+
+            document.getElementById('addSanitarioBtn').addEventListener('click', function() {
+                addMedidaBlock(document.getElementById('sanitarios-container'), 'Sanitário');
+            });
+
+            document.getElementById('addInternaBtn').addEventListener('click', function() {
+                addMedidaBlock(document.getElementById('internas-container'), 'Área Interna');
+            });
+
+            document.getElementById('addExternaBtn').addEventListener('click', function() {
+                addMedidaBlock(document.getElementById('externas-container'), 'Área Externa');
+            });
         });
     </script>
 </body>
 </html>
+
