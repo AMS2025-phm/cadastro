@@ -5,7 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Cadastro de Localidades e Medidas</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
-    <script src="{{ url_for('static', filename='script.js') }}"></script>
 </head>
 <body>
     <div class="container">
@@ -19,10 +18,60 @@
                 <label for="unidade">Unidade:</label>
                 <input type="text" id="unidade" name="unidade" required>
             </div>
+            <div class="form-group">
+                <label for="data">Data:</label>
+                <input type="date" id="data" name="data" required>
+            </div>
+            <div class="form-group">
+                <label for="responsavel">Responsável pela unidade:</label>
+                <input type="text" id="responsavel" name="responsavel">
+            </div>
+            <div class="form-group">
+                <label for="qtd_func">Quantidade de Funcionários:</label>
+                <input type="number" id="qtd_func" name="qtd_func" min="0">
+            </div>
+
+            <div class="form-group checkbox-group">
+                <input type="checkbox" id="gramado" name="gramado">
+                <label for="gramado">Possui Gramado?</label>
+            </div>
+            <div class="form-group checkbox-group">
+                <input type="checkbox" id="estacionamento" name="estacionamento">
+                <label for="estacionamento">Possui Estacionamento?</label>
+            </div>
+            <div class="form-group checkbox-group hidden" id="estacionamento-coberto-group">
+                <input type="checkbox" id="estacionamento_coberto" name="estacionamento_coberto">
+                <label for="estacionamento_coberto">Estacionamento é Coberto?</label>
+            </div>
+
+            <div class="form-group">
+                <label>Tipos de Piso:</label>
+                <div id="tipos-piso-checkboxes"></div>
+            </div>
+            <div class="form-group">
+                <label>Tipos de Parede:</label>
+                <div id="tipos-parede-checkboxes"></div>
+            </div>
+
+            <h2>Vidros</h2>
+            <div id="vidros-container"></div>
+            <button type="button" id="addVidroBtn">Adicionar Vidro</button>
+
+            <h2>Sanitários</h2>
+            <div id="sanitarios-container"></div>
+            <button type="button" id="addSanitarioBtn">Adicionar Sanitário</button>
+
+            <h2>Áreas Internas</h2>
+            <div id="internas-container"></div>
+            <button type="button" id="addInternaBtn">Adicionar Área Interna</button>
+
+            <h2>Áreas Externas</h2>
+            <div id="externas-container"></div>
+            <button type="button" id="addExternaBtn">Adicionar Área Externa</button>
+
             <button type="submit">Salvar Unidade</button>
         </form>
-        <div id="message-box"></div>
     </div>
-    <script src="script.js"></script>
+    <script src="{{ url_for('static', filename='script.js') }}"></script>
 </body>
 </html>
