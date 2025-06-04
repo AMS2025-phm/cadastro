@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cadastro de Localidades e Medidas</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <div class="container">
+        <h1>Cadastro de Localidades e Medidas por Unidade</h1>
+
+        <form id="cadastroForm">
+            <div class="form-group">
+                <label for="localidade">Localidade:</label>
+                <input type="text" id="localidade" name="localidade" required>
+            </div>
+            <div class="form-group">
+                <label for="unidade">Unidade:</label>
+                <input type="text" id="unidade" name="unidade" required>
+            </div>
+            <div class="form-group">
+                <label for="data">Data:</label>
+                <input type="date" id="data" name="data" value="{{ data_hoje }}" required>
+            </div>
+            <div class="form-group">
+                <label for="responsavel">Responsavel pela unidade:</label>
+                <input type="text" id="responsavel" name="responsavel">
+            </div>
+            <div class="form-group">
+                <label for="qtd_func">Quantidade de Funcionário:</label>
+                <input type="number" id="qtd_func" name="qtd_func" min="0">
+            </div>
+
+            <hr>
+            <h2>Características da Unidade</h2>
+            <div class="form-group checkbox-group">
+                <input type="checkbox" id="gramado" name="gramado">
+                <label for="gramado">Possui Gramado?</label>
+            </div>
+            <div class="form-group checkbox-group">
+                <input type="checkbox" id="estacionamento" name="estacionamento">
+                <label for="estacionamento">Possui Estacionamento?</label>
+            </div>
+            <div class="form-group checkbox-group hidden" id="estacionamento-coberto-group">
+                <input type="checkbox" id="estacionamento_coberto" name="estacionamento_coberto">
+                <label for="estacionamento_coberto">Estacionamento é Coberto?</label>
+            </div>
+            <div class="form-group checkbox-group">
+                <input type="checkbox" id="sala_curativo" name="sala_curativo">
+                <label for="sala_curativo">Possui Sala de Curativo?</label>
+            </div>
+            <div class="form-group checkbox-group">
+                <input type="checkbox" id="sala_vacina" name="sala_vacina">
+                <label for="sala_vacina">Possui Sala de Vacina?</label>
+            </div>
+            <div class="form-group checkbox-group">
+                <input type="checkbox" id="vidros_altos" name="vidros_altos">
+                <label for="vidros_altos">Possui Vidros Altos?</label>
+            </div>
+            <div class="form-group checkbox-group hidden" id="perigo-limpar-vidros-group">
+                <input type="checkbox" id="perigo_limpar_vidros" name="perigo_limpar_vidros">
+                <label for="perigo_limpar_vidros">Vidros Altos representam perigo para limpar?</label>
+            </div>
+
+            <div class="form-group">
+                <label>Tipos de Piso:</label>
+                <div id="tipos-piso-checkboxes" class="checkbox-options-group"></div>
+            </div>
+
+            <div class="form-group">
+                <label>Tipos de Parede:</label>
+                <div id="tipos-parede-checkboxes" class="checkbox-options-group"></div>
+            </div>
+
+            <hr>
+            <h2>Medidas da Unidade</h2>
+            <div id="medidas-container"></div>
+            <button type="button" id="addMedidaBtn" class="btn secondary-btn">Adicionar Medida</button>
+            <hr>
+
+            <div class="form-actions main-actions">
+                <button type="submit" class="btn">Salvar Unidade e Enviar Excel</button>
+            </div>
+        </form>
+
+        <hr>
+
+        <h2>Unidades Salvas</h2>
+        <div class="form-group">
+            <label for="localidadeUnidadeSelect">Selecionar Unidade Salva:</label>
+            <select id="localidadeUnidadeSelect" name="localidadeUnidadeSelect">
+                <option value="">-- Selecione uma unidade --</option>
+            </select>
+        </div>
+        <div class="form-actions">
+            <button type="button" id="carregarUnidadeBtn" class="btn secondary-btn">Carregar Dados da Unidade</button>
+            <button type="button" id="deletarUnidadeBtn" class="btn delete-btn">Deletar Unidade</button>
+        </div>
+
+        <div id="message-box" class="message-box hidden"></div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const estacionamentoCheckbox = document.getElementById('estacionamento');
+            const estacionamentoCobertoGroup = document.getElementById('estacionamento-coberto-group');
+
+            const vidrosAltosCheckbox = document.getElementById('vidros_altos');
+            const perigoLimparVidrosGroup = document.getElementById('perigo-limpar-vidros-group');
+
+            function updateEstacionamentoCobertoVisibility() {
+                if (estacionamentoCheckbox.checked) {
+                    estacionamentoCobertoGroup.classList.remove('hidden');
+                } else {
+                    estacionamentoCobertoGroup.classList.add('hidden');
+                    document.getElementById('estacionamento_coberto').checked = false;
+                }
+            }
+
+            function updatePerigoLimparVidrosVisibility() {
+                if (vidrosAltosCheckbox.checked) {
+                    perigoLimparVidrosGroup.classList.remove('hidden');
+                } else {
+                    perigoLimparVidrosGroup.classList.add('hidden');
+                    document.getElementById('perigo_limpar_vidros').checked = false;
+                }
+            }
+
+            estacionamentoCheckbox.addEventListener('change', updateEstacionamentoCobertoVisibility);
+            vidrosAltosCheckbox.addEventListener('change', updatePerigoLimparVidrosVisibility);
+
+            updateEstacionamentoCobertoVisibility();
+            updatePerigoLimparVidrosVisibility();
+
+            // Resto do seu código existente (carregamento de opções, envio de formulário etc.)
+        });
+    </script>
+</body>
+</html>
