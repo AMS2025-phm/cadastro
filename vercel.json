@@ -1,0 +1,45 @@
+{
+  "version": 2,
+  "builds": [
+    {
+      "src": "app.py",
+      "use": "@vercel/python",
+      "config": {
+        "maxLambdaSize": "15mb",
+        "runtime": "python3.9"
+      }
+    }
+  ],
+  "routes": [
+    {
+      "src": "/healthcheck",
+      "dest": "app.py"
+    },
+    {
+      "src": "/submit_levantamento",
+      "dest": "app.py"
+    },
+    {
+      "src": "/add_localidade_unidade",
+      "dest": "app.py"
+    },
+    {
+      "src": "/get_localidades_unidades",
+      "dest": "app.py"
+    },
+    {
+      "src": "/get_unidade_data/(.*)",
+      "dest": "app.py"
+    },
+    {
+      "src": "/(.*)",
+      "dest": "www/$1"
+    }
+  ],
+  "env": {
+    "EMAIL_USER": "@email_user",
+    "EMAIL_PASSWORD": "@email_password",
+    "SMTP_SERVER": "@smtp_server",
+    "SMTP_PORT": "@smtp_port"
+  }
+}

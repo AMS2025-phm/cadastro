@@ -1,0 +1,741 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Levantamento de Medidas (Offline)</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f0f2f5;
+            display: flex;
+            justify-content: center;
+            align-items: flex-start;
+            min-height: 100vh;
+            padding: 20px;
+        }
+        .container {
+            background-color: #ffffff;
+            border-radius: 1.5rem; /* rounded-3xl */
+            padding: 2.5rem; /* p-10 */
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05); /* shadow-xl */
+            max-width: 800px;
+            width: 100%;
+        }
+        h1, h2 {
+            color: #333;
+            text-align: center;
+            margin-bottom: 20px;
+        }
+        .form-group label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-weight: 600;
+            color: #4a4a4a;
+        }
+        .form-group input, .form-group select, .form-group textarea {
+            width: 100%;
+            padding: 0.75rem;
+            border: 1px solid #e0e0e0;
+            border-radius: 0.5rem;
+            font-size: 1rem;
+            color: #333;
+            box-sizing: border-box; /* Garante que padding não adicione largura */
+        }
+        .form-group input:focus, .form-group select:focus, .form-group textarea:focus {
+            border-color: #4CAF50;
+            outline: none;
+            box-shadow: 0 0 0 3px rgba(76, 175, 80, 0.2);
+        }
+        .form-group textarea {
+            min-height: 80px;
+            resize: vertical;
+        }
+        .btn-primary {
+            background-color: #4CAF50;
+            color: white;
+            padding: 0.75rem 1.5rem;
+            border: none;
+            border-radius: 0.5rem;
+            cursor: pointer;
+            font-size: 1rem;
+            font-weight: 600;
+            transition: background-color 0.3s ease;
+            width: 100%;
+            margin-top: 1rem;
+        }
+        .btn-primary:hover {
+            background-color: #45a049;
+        }
+        .btn-secondary {
+            background-color: #f0f0f0;
+            color: #333;
+            padding: 0.75rem 1.5rem;
+            border: 1px solid #ccc;
+            border-radius: 0.5rem;
+            cursor: pointer;
+            font-size: 1rem;
+            font-weight: 600;
+            transition: background-color 0.3s ease;
+            width: 100%;
+            margin-top: 1rem;
+        }
+        .btn-secondary:hover {
+            background-color: #e0e0e0;
+        }
+        .medida-item {
+            background-color: #f9f9f9;
+            border: 1px solid #e0e0e0;
+            border-radius: 0.5rem;
+            padding: 1rem;
+            margin-bottom: 1rem;
+            position: relative;
+        }
+        .medida-item h3 {
+            margin-top: 0;
+            color: #4CAF50;
+        }
+        .medida-item .btn-remove {
+            position: absolute;
+            top: 0.5rem;
+            right: 0.5rem;
+            background-color: #ff4d4d;
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 24px;
+            height: 24px;
+            font-size: 0.8rem;
+            cursor: pointer;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-weight: bold;
+        }
+        .medida-item .btn-remove:hover {
+            background-color: #cc0000;
+        }
+        .message {
+            padding: 10px;
+            margin-bottom: 15px;
+            border-radius: 8px;
+            font-weight: 500;
+            display: none; /* Controlado por JS */
+        }
+        .message.success { background-color: #d4edda; color: #155724; }
+        .message.error { background-color: #f8d7da; color: #721c24; }
+        .message.info { background-color: #d1ecf1; color: #0c5460; }
+        .message.warning { background-color: #fff3cd; color: #856404; }
+
+        /* Estilos para checkboxes */
+        .checkbox-group {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-top: 5px;
+        }
+        .checkbox-group label {
+            display: flex;
+            align-items: center;
+            margin-bottom: 0; /* Override default label margin */
+            font-weight: normal; /* Override default label font-weight */
+            color: #333;
+        }
+        .checkbox-group input[type="checkbox"] {
+            width: auto; /* Allow checkbox to take natural width */
+            margin-right: 5px;
+        }
+        .hidden {
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1 class="text-3xl font-bold mb-6">Levantamento de Medidas</h1>
+
+        <div id="messages" class="message" style="display: none;"></div>
+
+        <div id="addLocalidadeUnidadeSection" class="hidden">
+            <h2 class="text-2xl font-bold mt-8 mb-4 text-center">Cadastrar Nova Localidade/Unidade</h2>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div class="form-group">
+                    <label for="novaLocalidadeNome">Nome da Nova Localidade:</label>
+                    <input type="text" id="novaLocalidadeNome" placeholder="Ex: Escritório SP" class="w-full p-2 border border-gray-300 rounded">
+                </div>
+                <div class="form-group">
+                    <label for="novaUnidadeNome">Nome da Nova Unidade:</label>
+                    <input type="text" id="novaUnidadeNome" placeholder="Ex: Prédio Central" class="w-full p-2 border border-gray-300 rounded">
+                </div>
+            </div>
+            <button type="button" id="salvarNovaLocalidadeUnidadeBtn" class="btn-primary">Salvar Nova Localidade/Unidade</button>
+            <hr class="my-6">
+        </div>
+
+        <form id="levantamentoForm">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div class="form-group">
+                    <label for="localidade">Localidade/Unidade:</label>
+                    <select id="localidade" name="localidade" class="w-full p-2 border border-gray-300 rounded" required>
+                        <option value="">Carregando...</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="dataColeta">Data da Coleta:</label>
+                    <input type="date" id="dataColeta" name="dataColeta" class="w-full p-2 border border-gray-300 rounded" required>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div class="form-group">
+                    <label for="responsavel">Nome do Responsável:</label>
+                    <input type="text" id="responsavel" name="responsavel" placeholder="Seu Nome Completo" class="w-full p-2 border border-gray-300 rounded" required>
+                </div>
+                <div class="form-group">
+                    <label for="contatoEmail">Email para Contato e Envio da Planilha:</label>
+                    <input type="email" id="contatoEmail" name="contatoEmail" placeholder="seu.email@exemplo.com" class="w-full p-2 border border-gray-300 rounded" required>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div class="form-group">
+                    <label>Tipo de Piso (Múltipla Seleção):</label>
+                    <div id="tipoPisoCheckboxes" class="checkbox-group">
+                        <label><input type="checkbox" name="tipoPiso" value="Paviflex"> Paviflex</label>
+                        <label><input type="checkbox" name="tipoPiso" value="Cerâmica"> Cerâmica</label>
+                        <label><input type="checkbox" name="tipoPiso" value="Porcelanato"> Porcelanato</label>
+                        <label><input type="checkbox" name="tipoPiso" value="Granilite"> Granilite</label>
+                        <label><input type="checkbox" name="tipoPiso" value="Cimento Queimado"> Cimento Queimado</label>
+                        <label><input type="checkbox" name="tipoPiso" value="Epoxi"> Epoxi</label>
+                        <label><input type="checkbox" name="tipoPiso" value="Ardósia"> Ardósia</label>
+                        <label><input type="checkbox" name="tipoPiso" value="Outros"> Outros</label>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>Tipo de Parede (Múltipla Seleção):</label>
+                    <div id="tipoParedeCheckboxes" class="checkbox-group">
+                        <label><input type="checkbox" name="tipoParede" value="Alvenaria"> Alvenaria</label>
+                        <label><input type="checkbox" name="tipoParede" value="Estuque"> Estuque</label>
+                        <label><input type="checkbox" name="tipoParede" value="Divisórias"> Divisórias</label>
+                    </div>
+                </div>
+            </div>
+
+            <h2 class="text-2xl font-bold mt-8 mb-4 text-center">Detalhes das Medidas</h2>
+
+            <div class="grid grid-cols-1 md:grid-cols-1 gap-4">
+                <div class="form-group">
+                    <label>Tipo de Medida (Múltipla Seleção):</label>
+                    <div id="tipoMedidaCheckboxes" class="checkbox-group">
+                        <label><input type="checkbox" name="tipoMedida" value="Vidro"> Vidro</label>
+                        <label><input type="checkbox" name="tipoMedida" value="Sanitário-Vestiário"> Sanitário-Vestiário</label>
+                        <label><input type="checkbox" name="tipoMedida" value="Área Interna"> Área Interna</label>
+                        <label><input type="checkbox" name="tipoMedida" value="Área Externa"> Área Externa</label>
+                    </div>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div class="form-group">
+                    <label for="medidaL">Medida L (m):</label>
+                    <input type="number" id="medidaL" name="medidaL" step="0.01" placeholder="Largura em metros" class="w-full p-2 border border-gray-300 rounded">
+                </div>
+                <div class="form-group">
+                    <label for="medidaC">Medida C (m):</label>
+                    <input type="number" id="medidaC" name="medidaC" step="0.01" placeholder="Comprimento em metros" class="w-full p-2 border border-gray-300 rounded">
+                </div>
+            </div>
+            
+            <div class="form-group">
+                <label for="quantidade">Quantidade:</label>
+                <input type="number" id="quantidade" name="quantidade" step="1" placeholder="Quantidade do item" class="w-full p-2 border border-gray-300 rounded">
+            </div>
+
+            <div class="form-group">
+                <label for="detalhesAdicionais">Detalhes Adicionais:</label>
+                <textarea id="detalhesAdicionais" name="detalhesAdicionais" placeholder="Qualquer detalhe extra relevante" class="w-full p-2 border border-gray-300 rounded"></textarea>
+            </div>
+
+            <div class="form-group">
+                <label for="observacoes">Observações (Específicas da Medida):</label>
+                <textarea id="observacoes" name="observacoes" placeholder="Observações gerais sobre a medida" class="w-full p-2 border border-gray-300 rounded"></textarea>
+            </div>
+
+            <button type="button" id="adicionarMedidaBtn" class="btn-secondary">Adicionar Medida</button>
+            
+            <h2 class="text-2xl font-bold mt-8 mb-4 text-center">Medidas Adicionadas</h2>
+            <div id="medidasAdicionadas" class="medidas-list">
+                <p id="noMeasuresMessage">Nenhuma medida adicionada ainda.</p>
+            </div>
+
+            <button type="submit" class="btn-primary">Salvar Levantamento e Enviar Email</button>
+        </form>
+    </div>
+
+    <script type="module">
+        // Variáveis IndexedDB
+        const DB_NAME = 'levantamentoMedidasDB';
+        const DB_VERSION = 1;
+        const STORE_NAME = 'levantamentos'; // Renomeado de 'unidades' para 'levantamentos' para clareza
+        
+        let db;
+
+        async function openDB() {
+            return new Promise((resolve, reject) => {
+                const request = indexedDB.open(DB_NAME, DB_VERSION);
+
+                request.onupgradeneeded = event => {
+                    db = event.target.result;
+                    if (!db.objectStoreNames.contains(STORE_NAME)) {
+                        db.createObjectStore(STORE_NAME, { keyPath: 'id', autoIncrement: true });
+                    }
+                };
+
+                request.onsuccess = event => {
+                    db = event.target.result;
+                    resolve(db);
+                };
+
+                request.onerror = event => {
+                    console.error('Erro ao abrir IndexedDB:', event.target.error);
+                    reject(event.target.error);
+                };
+            });
+        }
+
+        async function addLevantamento(levantamentoData) {
+            await openDB();
+            return new Promise((resolve, reject) => {
+                const transaction = db.transaction(STORE_NAME, 'readwrite');
+                const store = transaction.objectStore(STORE_NAME);
+                const request = store.add(levantamentoData);
+
+                request.onsuccess = () => resolve(request.result);
+                request.onerror = () => reject(request.error);
+            });
+        }
+
+        async function getLevantamentos() {
+            await openDB();
+            return new Promise((resolve, reject) => {
+                const transaction = db.transaction(STORE_NAME, 'readonly');
+                const store = transaction.objectStore(STORE_NAME);
+                const request = store.getAll();
+
+                request.onsuccess = () => resolve(request.result);
+                request.onerror = () => reject(request.error);
+            });
+        }
+
+        async function deleteLevantamento(id) {
+            await openDB();
+            return new Promise((resolve, reject) => {
+                const transaction = db.transaction(STORE_NAME, 'readwrite');
+                const store = transaction.objectStore(STORE_NAME);
+                const request = store.delete(id);
+
+                request.onsuccess = () => resolve();
+                request.onerror = () => reject(request.error);
+            });
+        }
+        
+        // --- Variáveis Globais e Configuração ---
+        // Altere para a URL do seu backend no Render em produção!
+        //const BASE_URL = 'https://levantamento-377s.onrender.com';
+        // const BASE_URL = 'http://127.0.0.1:5000'; 
+	const BASE_URL = window.location.origin;
+
+        const localidadeSelect = document.getElementById('localidade');
+        const dataColetaInput = document.getElementById('dataColeta');
+        const responsavelInput = document.getElementById('responsavel');
+        const contatoEmailInput = document.getElementById('contatoEmail');
+
+        // Campos de medidas individuais (Removidos ambiente e descricao)
+        const tipoMedidaCheckboxes = document.querySelectorAll('input[name="tipoMedida"]'); // Multiplos checkboxes
+        const medidaLInput = document.getElementById('medidaL');
+        const medidaCInput = document.getElementById('medidaC');
+        const quantidadeInput = document.getElementById('quantidade');
+        const detalhesAdicionaisInput = document.getElementById('detalhesAdicionais');
+        const observacoesInput = document.getElementById('observacoes'); // Observações da medida
+
+        // Campos globais da unidade (checkboxes)
+        const tipoPisoCheckboxes = document.querySelectorAll('input[name="tipoPiso"]');
+        const tipoParedeCheckboxes = document.querySelectorAll('input[name="tipoParede"]');
+
+        const adicionarMedidaBtn = document.getElementById('adicionarMedidaBtn');
+        const medidasAdicionadasDiv = document.getElementById('medidasAdicionadas');
+        const noMeasuresMessage = document.getElementById('noMeasuresMessage');
+        const levantamentoForm = document.getElementById('levantamentoForm');
+        const messagesDiv = document.getElementById('messages');
+
+        // Elementos para nova localidade/unidade
+        const addLocalidadeUnidadeSection = document.getElementById('addLocalidadeUnidadeSection');
+        const novaLocalidadeNomeInput = document.getElementById('novaLocalidadeNome');
+        const novaUnidadeNomeInput = document.getElementById('novaUnidadeNome');
+        const salvarNovaLocalidadeUnidadeBtn = document.getElementById('salvarNovaLocalidadeUnidadeBtn');
+
+
+        let medidasColetadas = []; // Array para armazenar as medidas adicionadas
+
+        // --- Funções de UI e Mensagens ---
+        function showMessage(msg, type) {
+            messagesDiv.textContent = msg;
+            messagesDiv.className = `message ${type}`;
+            messagesDiv.style.display = 'block';
+            setTimeout(() => {
+                messagesDiv.style.display = 'none';
+            }, 5000); // Mensagem desaparece após 5 segundos
+        }
+
+        function clearFormMedidas() {
+            // Removido ambienteInput.value = ''; e descricaoInput.value = '';
+            tipoMedidaCheckboxes.forEach(cb => cb.checked = false); // Limpa checkboxes
+            medidaLInput.value = '';
+            medidaCInput.value = '';
+            quantidadeInput.value = '';
+            detalhesAdicionaisInput.value = '';
+            observacoesInput.value = '';
+        }
+
+        function renderizarMedidas() {
+            medidasAdicionadasDiv.innerHTML = '';
+            if (medidasColetadas.length === 0) {
+                noMeasuresMessage.style.display = 'block';
+                return;
+            }
+            noMeasuresMessage.style.display = 'none';
+
+            // Exibir apenas as últimas 5 medidas para evitar lista muito longa
+            const medidasParaExibir = medidasColetadas.slice(-5); 
+
+            medidasParaExibir.forEach((medida, index) => {
+                const medidaItem = document.createElement('div');
+                medidaItem.className = 'medida-item';
+                // Adapte a exibição das medidas para mostrar o array de Tipo de Medida
+                const tiposMedidaDisplay = medida.tipoMedida.join(', ') || 'N/A';
+                
+                // Ajustada a exibição para os campos restantes
+                medidaItem.innerHTML = `
+                    <h3>Medida ${medidasColetadas.length - medidasParaExibir.length + index + 1}</h3>
+                    <p>Tipos: ${tiposMedidaDisplay}</p>
+                    <p>Medidas: L ${medida.medidaL || 'N/A'}m x C ${medida.medidaC || 'N/A'}m (Qtd: ${medida.quantidade || 'N/A'})</p>
+                    <p>Detalhes: ${medida.detalhesAdicionais || 'N/A'}</p>
+                    <p>Obs: ${medida.observacoes || 'N/A'}</p>
+                    <button type="button" class="btn-remove" data-index="${medidasColetadas.length - medidasParaExibir.length + index}">X</button>
+                `;
+                medidasAdicionadasDiv.appendChild(medidaItem);
+            });
+
+            // Ajuste no botão de remoção para remover do array original
+            document.querySelectorAll('.btn-remove').forEach(button => {
+                button.addEventListener('click', (event) => {
+                    const indexToRemove = parseInt(event.target.dataset.index);
+                    medidasColetadas.splice(indexToRemove, 1);
+                    renderizarMedidas();
+                });
+            });
+        }
+
+        // --- Funções de Sincronização e Offline ---
+        async function checkOnlineStatus() {
+            try {
+                const response = await fetch(`${BASE_URL}/healthcheck`, { method: 'HEAD' });
+                return response.ok;
+            } catch (error) {
+                return false;
+            }
+        }
+
+        async function syncLevantamentosWithServer() {
+            const levantamentosToSend = await getLevantamentos();
+            if (levantamentosToSend.length === 0) {
+                console.log('Nenhum levantamento pendente para sincronizar.');
+                return;
+            }
+
+            console.log(`Tentando sincronizar ${levantamentosToSend.length} levantamentos pendentes...`);
+            showMessage(`Sincronizando ${levantamentosToSend.length} levantamentos pendentes...`, 'info');
+
+            for (const levantamento of levantamentosToSend) {
+                try {
+                    const response = await fetch(`${BASE_URL}/submit_levantamento`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(levantamento.data)
+                    });
+
+                    const result = await response.json();
+                    if (response.ok && result.status === 'success') {
+                        console.log(`Levantamento sincronizado com sucesso: ${levantamento.id}`);
+                        await deleteLevantamento(levantamento.id);
+                        showMessage(`Levantamento sincronizado: ${levantamento.data.localidade}`, 'success');
+                    } else {
+                        console.error(`Falha ao sincronizar levantamento ${levantamento.id}:`, result.message);
+                        showMessage(`Falha ao sincronizar levantamento ${levantamento.data.localidade}: ${result.message}`, 'error');
+                    }
+                } catch (error) {
+                    console.error(`Erro de rede ao sincronizar levantamento ${levantamento.id}:`, error);
+                    showMessage(`Erro de rede ao sincronizar levantamento ${levantamento.data.localidade}. Tentarei novamente.`, 'error');
+                }
+            }
+            console.log('Sincronização concluída.');
+        }
+
+        // --- Funções de Carregamento de Dados Iniciais (localidades.json) ---
+        async function fetchLocalidadesUnidades() {
+            try {
+                const response = await fetch(`${BASE_URL}/get_localidades_unidades`);
+                if (!response.ok) throw new Error('Falha ao carregar localidades/unidades');
+                const data = await response.json();
+                populateLocalidadeSelect(data);
+                // Se não houver localidades, mostra a seção de adicionar
+                if (data.length === 0) {
+                    addLocalidadeUnidadeSection.classList.remove('hidden');
+                    localidadeSelect.innerHTML = '<option value="">Nenhuma localidade. Cadastre uma!</option>';
+                    localidadeSelect.disabled = true; // Desabilita seleção até cadastrar
+                } else {
+                    addLocalidadeUnidadeSection.classList.add('hidden');
+                    localidadeSelect.disabled = false;
+                }
+            } catch (error) {
+                console.error('Erro ao buscar localidades/unidades:', error);
+                showMessage('Erro ao carregar localidades. Verifique a conexão ou o backend.', 'error');
+                addLocalidadeUnidadeSection.classList.remove('hidden'); // Mostra a seção de adicionar mesmo com erro
+                localidadeSelect.innerHTML = '<option value="">Erro ao carregar. Tente cadastrar uma nova!</option>';
+                localidadeSelect.disabled = true;
+            }
+        }
+
+        function populateLocalidadeSelect(localidades) {
+            localidadeSelect.innerHTML = '<option value="">Selecione a Localidade/Unidade</option>';
+            localidades.forEach(localidade => {
+                const option = document.createElement('option');
+                option.value = localidade;
+                option.textContent = localidade;
+                localidadeSelect.appendChild(option);
+            });
+        }
+        
+        // Função para coletar valores de checkboxes
+        function getCheckedValues(name) {
+            return Array.from(document.querySelectorAll(`input[name="${name}"]:checked`)).map(cb => cb.value);
+        }
+
+        // --- Função para Coletar TODOS os dados do formulário ---
+        function coletarDadosFormulario() {
+            const dadosGerais = {
+                localidade: localidadeSelect.value,
+                dataColeta: dataColetaInput.value,
+                responsavel: responsavelInput.value,
+                contatoEmail: contatoEmailInput.value,
+                // Campos globais (tipo de piso/parede)
+                tipoPiso: getCheckedValues('tipoPiso'),
+                tipoParede: getCheckedValues('tipoParede'),
+                medidas: medidasColetadas 
+            };
+            return dadosGerais;
+        }
+
+        // --- Função Principal para Submeter Dados ---
+        async function submitFormData(event) {
+            event.preventDefault();
+
+            if (!localidadeSelect.value || !dataColetaInput.value || !responsavelInput.value || !contatoEmailInput.value) {
+                showMessage('Por favor, preencha todos os campos obrigatórios do formulário principal.', 'warning');
+                return;
+            }
+            if (medidasColetadas.length === 0) {
+                showMessage('Por favor, adicione pelo menos uma medida antes de salvar.', 'warning');
+                return;
+            }
+
+            const dadosCompletos = coletarDadosFormulario();
+            
+            const isOnline = await checkOnlineStatus();
+
+            if (isOnline) {
+                console.log('Online: Tentando enviar dados ao servidor...');
+                try {
+                    const response = await fetch(`${BASE_URL}/submit_levantamento`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify(dadosCompletos),
+                    });
+
+                    const result = await response.json();
+
+                    if (response.ok && result.status === 'success') {
+                        showMessage('Levantamento salvo e e-mail enviado com sucesso!', 'success');
+                        levantamentoForm.reset();
+                        medidasColetadas = [];
+                        renderizarMedidas();
+                        clearFormMedidas();
+                        // Limpa os checkboxes globais
+                        tipoPisoCheckboxes.forEach(cb => cb.checked = false);
+                        tipoParedeCheckboxes.forEach(cb => cb.checked = false);
+                    } else {
+                        showMessage(`Erro ao salvar levantamento: ${result.message || response.statusText}`, 'error');
+                        console.error('Erro no servidor:', result);
+                    }
+                } catch (error) {
+                    console.error('Erro de rede ao enviar dados:', error);
+                    showMessage('Erro de conexão. Salvando dados localmente para sincronização futura.', 'warning');
+                    await addLevantamento({
+                        localidade: dadosCompletos.localidade,
+                        data: dadosCompletos,
+                        synced: false
+                    });
+                    if ('serviceWorker' in navigator && 'SyncManager' in window) {
+                        navigator.serviceWorker.ready.then(reg => {
+                            reg.sync.register('sync-pending-units');
+                        });
+                    }
+                    levantamentoForm.reset();
+                    medidasColetadas = [];
+                    renderizarMedidas();
+                    clearFormMedidas();
+                    tipoPisoCheckboxes.forEach(cb => cb.checked = false);
+                    tipoParedeCheckboxes.forEach(cb => cb.checked = false);
+                }
+            } else {
+                console.log('Offline: Salvando dados localmente...');
+                showMessage('Você está offline. Dados salvos localmente. Serão enviados quando a conexão for restabelecida.', 'warning');
+                await addLevantamento({
+                    localidade: dadosCompletos.localidade,
+                    data: dadosCompletos,
+                    synced: false
+                });
+                if ('serviceWorker' in navigator && 'SyncManager' in window) {
+                    navigator.serviceWorker.ready.then(reg => {
+                        reg.sync.register('sync-pending-units');
+                    });
+                }
+                levantamentoForm.reset();
+                medidasColetadas = [];
+                renderizarMedidas();
+                clearFormMedidas();
+                tipoPisoCheckboxes.forEach(cb => cb.checked = false);
+                tipoParedeCheckboxes.forEach(cb => cb.checked = false);
+            }
+        }
+
+        // --- Nova Função para Salvar Nova Localidade/Unidade ---
+        async function salvarNovaLocalidadeUnidade() {
+            const novaLocalidade = novaLocalidadeNomeInput.value.trim();
+            const novaUnidade = novaUnidadeNomeInput.value.trim();
+
+            if (!novaLocalidade || !novaUnidade) {
+                showMessage('Por favor, preencha o nome da nova localidade e unidade.', 'warning');
+                return;
+            }
+
+            const isOnline = await checkOnlineStatus();
+            if (!isOnline) {
+                showMessage('Você está offline. Não é possível cadastrar novas localidades/unidades no momento.', 'error');
+                return;
+            }
+
+            try {
+                const response = await fetch(`${BASE_URL}/add_localidade_unidade`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ localidade: novaLocalidade, unidade: novaUnidade })
+                });
+
+                const result = await response.json();
+                if (response.ok && result.status === 'success') {
+                    showMessage('Nova localidade/unidade cadastrada com sucesso!', 'success');
+                    novaLocalidadeNomeInput.value = '';
+                    novaUnidadeNomeInput.value = '';
+                    addLocalidadeUnidadeSection.classList.add('hidden'); // Oculta a seção novamente
+                    await fetchLocalidadesUnidades(); // Recarrega a lista para atualizar o dropdown
+                } else {
+                    showMessage(`Erro ao cadastrar: ${result.message || response.statusText}`, 'error');
+                    console.error('Erro no servidor:', result);
+                }
+            } catch (error) {
+                console.error('Erro de rede ao cadastrar nova localidade:', error);
+                showMessage('Erro de conexão ao tentar cadastrar nova localidade/unidade.', 'error');
+            }
+        }
+
+
+        // --- Event Listeners ---
+        document.addEventListener('DOMContentLoaded', async () => {
+            dataColetaInput.value = new Date().toISOString().slice(0, 10);
+            
+            await fetchLocalidadesUnidades(); // Tenta carregar e decide se mostra a seção de cadastro
+            renderizarMedidas();
+
+            adicionarMedidaBtn.addEventListener('click', () => {
+                const novaMedida = {
+                    // Removido ambiente e descricao
+                    tipoMedida: getCheckedValues('tipoMedida'), // Coleta múltiplos
+                    medidaL: parseFloat(medidaLInput.value) || 0,
+                    medidaC: parseFloat(medidaCInput.value) || 0,
+                    quantidade: parseInt(quantidadeInput.value) || 0,
+                    detalhesAdicionais: detalhesAdicionaisInput.value,
+                    observacoes: observacoesInput.value
+                };
+
+                // Validação ajustada para os campos restantes
+                if (novaMedida.tipoMedida.length === 0 || (!novaMedida.medidaL && !novaMedida.medidaC && !novaMedida.quantidade)) {
+                    showMessage('Por favor, preencha Tipo de Medida e ao menos um campo de medida (L, C ou Quantidade) para adicionar uma medida.', 'warning');
+                    return;
+                }
+                
+                medidasColetadas.push(novaMedida);
+                renderizarMedidas();
+                clearFormMedidas();
+            });
+
+            levantamentoForm.addEventListener('submit', submitFormData);
+            salvarNovaLocalidadeUnidadeBtn.addEventListener('click', salvarNovaLocalidadeUnidade); // Novo listener
+
+            // --- Registro do Service Worker e Sincronização ---
+            if ('serviceWorker' in navigator) {
+                window.addEventListener('load', () => {
+                    navigator.serviceWorker.register('/sw.js')
+                        .then(registration => {
+                            console.log('Service Worker registrado:', registration);
+                            if ('SyncManager' in window) {
+                                registration.sync.register('sync-pending-units')
+                                    .then(() => console.log('Background Sync registrado!'))
+                                    .catch(err => console.error('Erro ao registrar Background Sync:', err));
+                            }
+                        })
+                        .catch(error => {
+                            console.error('Falha no registro do Service Worker:', error);
+                        });
+                });
+            }
+
+            window.addEventListener('online', () => {
+                showMessage('Conexão com a internet restabelecida. Tentando sincronizar dados pendentes...', 'info');
+                syncLevantamentosWithServer();
+            });
+            window.addEventListener('offline', () => {
+                showMessage('Você está offline. Os dados serão salvos localmente e sincronizados quando a conexão for restabelecida.', 'warning');
+            });
+
+            const isOnlineInitial = await checkOnlineStatus();
+            if (!isOnlineInitial) {
+                showMessage('Você está offline. Os dados serão salvos localmente.', 'warning');
+            } else {
+                syncLevantamentosWithServer();
+            }
+
+            navigator.serviceWorker.addEventListener('message', event => {
+                if (event.data && event.data.type === 'SYNC_COMPLETE') {
+                    console.log('Mensagem do SW:', event.data.message);
+                }
+            });
+        });
+    </script>
+</body>
+</html>
